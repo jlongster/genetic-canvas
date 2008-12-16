@@ -1,0 +1,2 @@
+
+int blank_entry();
