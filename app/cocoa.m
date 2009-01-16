@@ -18,11 +18,12 @@ int cocoa_entry(___SCMOBJ args) {
 	}
 
 	int argc = i+1;
+				 
 
 	// TODO: probably need to free() the individual strings,
 	// need to look at ___SCMOBJ_to_CHARSTRING
 	argv = realloc(argv, sizeof(char*)*argc);
-	fprintf(stderr, "I am starting");
 	NSApplicationMain(argc, (const char**)argv);
 	free(argv);
+	return 0;
 }

@@ -6,6 +6,7 @@
 	NSTimer* timer;
 }
 -(void) awakeFromNib;
+-(void) prepareOpenGL;
 -(BOOL) acceptsFirstResponder;
 -(BOOL) becomeFirstResponder;
 -(void) mouseMoved:(NSEvent *)theEvent;

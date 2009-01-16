@@ -11,10 +11,9 @@
 							  backing:bufferingType
 							  defer:flag];
 	[window setLevel:NSFloatingWindowLevel];
-	[window setOpaque:NO];
-	[window setAlphaValue:0.6];
-	[window setAcceptsMouseMovedEvents:YES];
-	[window makeKeyAndOrderFront:self];
+	//[window setOpaque:NO];
+	//[window setAlphaValue:0.6];
+	//[window setAcceptsMouseMovedEvents:YES];
 	return window;
 }
 @end

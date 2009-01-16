@@ -7,7 +7,6 @@
 declare-end
 )
 
-
 (define gluBeginCurve (c-lambda (GLUnurbs* ) void "gluBeginCurve"))
 (define gluBeginPolygon (c-lambda (GLUtesselator* ) void "gluBeginPolygon"))
 (define gluBeginSurface (c-lambda (GLUnurbs* ) void "gluBeginSurface"))

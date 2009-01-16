@@ -1,42 +1,79 @@
-all: Main.app/Contents/MacOS/main
+all: main Main.app main.nib
 
-entry.c: entry.scm
-	gsc -debug -c entry.scm
+main.nib: app/main.xib
+	rm -rf main.nib
+	ibtool --errors --warnings --notices \
+		--output-format human-readable-text \
+		--compile main.nib app/main.xib
 
-engine.c: engine.scm
-	gsc -debug -c engine.scm
+app/entry.c: app/entry.scm
+	gsc -c app/entry.scm
 
-link_.c: entry.c engine.c
-	gsc -debug -link -o link_.c engine.c entry.c
+lib/init.c: lib/init.scm lib/resources.scm
+	gsc -c lib/init.scm
 
-Main.app/Contents/Info.plist: Info.plist
-	mkdir -p Main.app/Contents
-	cp Info.plist Main.app/Contents/Info.plist
+app/link_.c: app/entry.c lib/init.c
+	gsc -link -o app/link_.c lib/init.c app/entry.c
 
-Main.app/Contents/Resources/main.nib: main.xib
-	mkdir -p Main.app/Contents/Resources
-	rm -r Main.app/Contents/Resources/main.nib
-	ibtool --errors --warnings --notices --output-format human-readable-text \
-		--compile Main.app/Contents/Resources/main.nib main.xib
-
-Main.app/Contents/MacOS/main: main.nib link_.c entry.c engine.c cocoa-entry.m glview.m glwindow.m Main.app/Contents/Info.plist Main.app/Contents/Resources/main.nib
-	mkdir -p Main.app/Contents/MacOS
-	gcc -o main link_.c entry.c engine.c cocoa-entry.m glview.m glwindow.m \
+main: app/link_.c app/cocoa.m app/glview.m app/glwindow.m
+	gcc -o main app/link_.c lib/init.c app/entry.c \
+		app/cocoa.m app/glview.m \
+		app/glwindow.m \
 		-I/usr/local/Gambit-C/current/include \
 		-framework Cocoa -framework OpenGL \
-		-lgambc
-	mv main Main.app/Contents/MacOS
+		-lgambc \
+		-sectcreate __TEXT __info_plist app/Info.plist
 
-# Below compiles the program with a C entry point
-# main: main.nib main.c engine.scm 
-# 	gsc -debug -link -o engine_.c engine.scm
-# 	gcc -o main main.c engine*.c \
-# 		-D___LIBRARY \
-# 		-I/usr/local/Gambit-C/current/include \
-# 		-lgambc
+lib/opengl-ffi/opengl.o1: lib/opengl-ffi/opengl.scm
+	rm -f lib/opengl-ffi/opengl.o1
+	gsc lib/opengl-ffi/opengl.scm
+	mv lib/opengl-ffi/opengl.o1 lib/opengl-ffi/opengl.o1
 
-clean:
-	rm link_.c
-	rm engine.c
-	rm entry.c
-	rm -r Main.app
+lib/opengl-ffi/glu.o1: lib/opengl-ffi/glu.scm
+	rm -f lib/opengl-ffi/glu.o1
+	gsc lib/opengl-ffi/glu.scm
+	mv lib/opengl-ffi/glu.o1 lib/opengl-ffi/glu.o1
+
+lib/engine.o1: lib/engine.scm
+	rm -f lib/engine.o1
+	gsc lib/engine.scm
+
+lib/obj-loader.o1: lib/obj-loader.scm
+	rm -f lib/obj-loader.o1
+	gsc lib/obj-loader.scm
+
+objects: lib/engine.o1 \
+	lib/opengl-ffi/opengl.o1 \
+	lib/opengl-ffi/glu.o1 \
+	lib/obj-loader.o1
+
+clean-objects:
+	find . -iname '*.o1' -not -iname 'opengl*' \
+			     -not -iname 'glu*' | xargs rm
+
+## For compiling as a bundled app
+# Main.app/Contents/Info.plist: Info.plist
+# 	mkdir -p Main.app/Contents
+# 	cp Info.plist Main.app/Contents/Info.plist
+
+Main.app/Contents/Resources/main.nib: main.nib
+	mkdir -p Main.app/Contents/Resources
+	rm -rf Main.app/Contents/Resources/main.nib
+	cp -r main.nib Main.app/Contents/Resources/main.nib
+
+Main.app/Contents/MacOS/main: main
+	mkdir -p Main.app/Contents/MacOS
+	cp main Main.app/Contents/MacOS
+
+Main.app: Main.app/Contents/MacOS/main \
+	  Main.app/Contents/Resources/main.nib
+
+## cleanup
+clean: clean-objects
+	rm -f app/link_.c
+	rm -f lib/engine-c.c
+	rm -f app/entry.c
+	rm -f app/entry-end.c
+	rm -f main
+	rm -rf Main.app
+	rm -rf main.nib

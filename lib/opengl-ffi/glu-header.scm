@@ -1,3 +1,6 @@
+
+(c-declare "typedef void _GLUfuncptr();")
+
 (include "opengl-header.scm")
 
 (c-define-type _GLUfuncptr "_GLUfuncptr")
