@@ -99,18 +99,23 @@
                 (memq (make-id token) typedefs)))))
 
 (define (make-type token)
-  (if (id-token? token)
-      (let ((maybe (memq (make-id token) typedefs)))
-        (if maybe
-            (make-type (car maybe))
-            (parser-error "make-type: invalid type token: " token)))
+  (define (symbol-append . args)
+    (let ((args (reverse args)))
       (string->symbol
-       (let ((lst (reverse (cdr token))))
-         (fold (lambda (el r)
-                 (string-append (symbol->string el) "-"
-                                r))
-               (symbol->string (car lst))
-               (cdr lst))))))
+       (fold (lambda (el r)
+               (string-append (symbol->string el) "-"
+                              r))
+             (symbol->string (car args))
+             (cdr args)))))
+  (let loop ((acc '())
+             (pieces (reverse (if (eq? (cadr token) 'const)
+                                  (cddr token)
+                                  (cdr token)))))
+    (if (null? pieces)
+        (parser-error "invalid type (no concrete type found): " token)
+         (if (eq? (car pieces) 'star)
+            `(pointer ,(loop acc (cdr pieces)))
+            (apply symbol-append (reverse pieces))))))
 
 (define typedefs '())
 
@@ -159,11 +164,17 @@
                             (case (car parts)
                               ((open-paren comma)
                                (loop (cons (cadr parts) acc)
-                                     (cdddr parts)))
+                                     (if (id-token? (caddr parts))
+                                         (cdddr parts)
+                                         (cddr parts))))
                               (else (loop acc (cdr parts)))))))))
-    (let ((id (make-id id-token)))
+    (let ((ret-type (make-type ret-type-token))
+          (id (make-id id-token))
+          (types (map make-type type-tokens)))
       `(define ,id
-         (c-lambda ,type-tokens ,ret-type-token ,(symbol->string id))))))
+         (c-lambda ,(if (equal? types '(void)) '() types)
+                   ,ret-type
+                   ,(symbol->string id))))))
 
 (define (pre-parse token)
   (define (transformed)
@@ -174,14 +185,14 @@
         (reverse acc))
        ((extern-token? token)
         (loop acc (cdr token)))
+       ((type-keyword? (car token))
+        (receive (c-type-token next-token) (read-type-keywords token)
+          (loop (cons (cons 'type c-type-token) acc) next-token)))
        ((pair? (car token))
         (loop (cons (loop '() (car token)) acc)
               (cdr token)))
        (else
-        (if (type-keyword? (car token))
-            (receive (c-type-token next-token) (read-type-keywords token)
-              (loop (cons (cons 'type c-type-token) acc) next-token))
-            (loop (cons (car token) acc) (cdr token)))))))
+        (loop (cons (car token) acc) (cdr token))))))
 
   (let ((token (transformed)))
     (if (typedef-token? token)
@@ -207,5 +218,13 @@
               (maybe-write-expr (make-function-expr token))))
             (loop))))))
 
+(define (headers)
+  `(c-declare "#include \"gl.h\""))
+
+(write (headers) (current-output-port))
 (parse (current-input-port)
        (current-output-port))
+
+
+
+
