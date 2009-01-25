@@ -1,2 +1,2 @@
 (include "silex.scm")
-(lex "autoffi.l" "autoffi.scm")
+(lex "autoffi.l" "autoffi-lexer.scm")

@@ -1,14 +1,4 @@
 
-(define (parser-error . args)
-  (for-each
-   (lambda (x)
-     (if (not (string? x))
-         (write x (current-error-port))
-         (display x (current-error-port))))
-   args)
-  (newline (current-error-port))
-  (exit 0))
-
 (define (parse input-port output-port)
   (define (writer node)
     (write node output-port)

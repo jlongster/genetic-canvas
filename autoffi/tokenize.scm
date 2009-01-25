@@ -1,4 +1,4 @@
-(include "autoffi.scm")
+(include "autoffi-lexer.scm")
 
 ;; Token generators depend on these definitions
 (define pp-mode #f)
@@ -8,7 +8,7 @@
   (newline)
   (exit 1))
 
-(define (lex-gl input-port output-port)
+(define (tokenize input-port output-port)
   (lexer-init 'port input-port)
   (let loop ()
     (let ((tok (lexer)))
@@ -16,7 +16,3 @@
       (newline)
       (if (not (eq? tok 'stop))
           (loop)))))
-
-
-(lex-gl (current-input-port)
-        (current-output-port))
