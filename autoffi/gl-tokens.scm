@@ -1,15 +1,15 @@
 (include "autoffi.scm")
 
 ;; Token generators depend on these definitions
-(define pp-mode #t)
+(define pp-mode #f)
 (define (lexer-error c)
   (display "*** ERROR *** invalid token: ")
   (write c)
   (newline)
   (exit 1))
 
-(define (lex-gl output-port)
-  (lexer-init 'port (open-file "gl.h"))
+(define (lex-gl input-port output-port)
+  (lexer-init 'port input-port)
   (let loop ()
     (let ((tok (lexer)))
       (write tok output-port)
@@ -18,4 +18,5 @@
           (loop)))))
 
 
-(lex-gl (current-output-port))
+(lex-gl (current-input-port)
+        (current-output-port))

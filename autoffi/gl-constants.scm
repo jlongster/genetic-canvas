@@ -1,4 +1,14 @@
+;;
+;; autoffi - c header parser for generating ffi's
+;;
+;; --- todo -----------------------------------
+;;
+;; * respect #ifdef __cplusplus type statements if possible
+;;
 
+(generate-proper-tail-calls #f)
+
+;; utility
 (define (fold kons knil lst)
   (let loop ((acc knil)
              (lst lst))
@@ -17,6 +27,30 @@
   (newline (current-error-port))
   #f)
 
+(define-macro (assert test . result)
+  `(let ((res ,test))
+     (if (not ,(if (pair? result)
+                   `(equal? res ,(car result))
+                   'res))
+         (begin
+           (parser-error " *** ASSERTION FAILURE *** ")
+           (parser-error ',test)
+           (parser-error res " != "
+                         ,(if (pair? result)
+                              (car result)
+                              #t))
+           (exit 1)))))
+
+(define (split-token done? token)
+  (let loop ((acc '())
+             (tok token))
+    (if (or (null? tok)
+            (done? tok))
+        (values (reverse acc) tok)
+        (loop (cons (car tok) acc)
+              (cdr tok)))))
+
+;; numbers
 (define (num-token? token)
   (and (pair? token)
        (eq? (car token) 'num)
@@ -25,6 +59,7 @@
 (define (make-num token)
   (cadr token))
 
+;; ids
 (define (id-token? token)
   (and (pair? token)
        (eq? (car token) 'id)
@@ -33,6 +68,7 @@
 (define (make-id token)
   (string->symbol (cadr token)))
 
+;; pre-processor constants
 (define (constant-token? token)
   (and (pair? token)
        (eq? (car token) 'pp-define)
@@ -56,7 +92,7 @@
                                  val)))))))
 
 
-;; Primitive types
+;; type keywords
 (define type-keywords
   '(bool
     size_t
@@ -70,33 +106,39 @@
     char
     void
     const
-    star))
+    star
+    struct))
 
 (define (type-keyword? token)
   (or (memq token type-keywords)
-      (and (id-token? token)
-           (memq (make-id token) typedefs))))
+      (id-token? token)))
 
-(define (make-type-keyword token)
-  (if (id-token? token)
-      (make-id token)
-      token))
+(define (read-type-keywords done? token)
+  (split-token (lambda (tok)
+                 (if (type-keyword? (car tok))
+                     (done? tok)
+                     #t))
+               token))
 
-(define (read-type-keywords token)
-  (let loop ((acc '())
-             (tok token))
-    (if (null? tok)
-        (values (reverse acc) '())
-        (if (type-keyword? (car tok))
-            (loop (cons (make-type-keyword (car tok)) acc)
-                  (cdr tok))
-            (values (reverse acc) tok)))))
+(assert (type-keyword? 'int))
+(assert (type-keyword? 'struct))
+(assert (type-keyword? '(id "idgen")))
 
+;; types
 (define (type-token? token)
   (and (pair? token)
-       (or (eq? (car token) 'type)
-           (and (id-token? token)
-                (memq (make-id token) typedefs)))))
+       (fold (lambda (el r)
+               (and (type-keyword? el)
+                    r))
+             #t
+             token)))
+
+(define (symbolify-type token)
+  (map (lambda (el)
+         (if (id-token? el)
+             (make-id el)
+             el))
+       token))
 
 (define (make-type token)
   (define (symbol-append . args)
@@ -108,97 +150,121 @@
              (symbol->string (car args))
              (cdr args)))))
   (let loop ((acc '())
-             (pieces (reverse (if (eq? (cadr token) 'const)
-                                  (cddr token)
-                                  (cdr token)))))
+             (pieces (reverse (if (eq? (car token) 'const)
+                                  (cdr token)
+                                  token))))
     (if (null? pieces)
         (parser-error "invalid type (no concrete type found): " token)
-         (if (eq? (car pieces) 'star)
+        (if (eq? (car pieces) 'star)
             `(pointer ,(loop acc (cdr pieces)))
-            (apply symbol-append (reverse pieces))))))
+            (let ((rest (symbolify-type (reverse pieces))))
+              (if (eq? (car rest) 'struct)
+                  `(struct ,(symbol->string (make-id (cadr token))))
+                  (apply symbol-append rest)))))))
 
-(define typedefs '())
+(assert (type-token? '(const unsigned int)))
+(assert (type-token? '(const unsigned int err)) #f)
+(assert (symbolify-type '(unsigned int)) '(unsigned int))
+(assert (symbolify-type '((id "idgen"))) '(idgen))
+(assert (make-type '(const unsigned int)) 'unsigned-int)
+(assert (make-type '(const idgen)) 'idgen)
+(assert (make-type '(unsigned int star star))
+        '(pointer (pointer unsigned-int)))
+(assert (make-type '(struct (id "idgen")))
+        '(struct "idgen"))
 
+;; typedefs
 (define (typedef-token? token)
   (and (pair? token)
-       (eq? (car token) 'typedef)
-       (eq? (length token) 3)))
+       (eq? (car token) 'typedef)))
 
 (define (make-typedef-expr token)
-  (let ((type-token (cadr token))
-        (id-token (caddr token)))
+  (receive (type-token rest)
+      (read-type-keywords (lambda (tok)
+                            (eq? (length tok) 1))
+                          (cdr token))
     (if (not (type-token? type-token))
         (parser-error "invalid typedef type <" type-token "> in " token)
-        (if (not (id-token? id-token))
-            (parser-error "invalid typedef id <" id-token
-                          "> in " token)
-            (let ((id (make-id id-token))
-                  (type (make-type type-token)))
-              `(c-define-type ,id ,type))))))
+        (let ((id-token (car rest)))
+          (if (not (id-token? id-token))
+              (parser-error "invalid typedef id <" id-token
+                            "> in " token)
+              (let ((id (make-id id-token))
+                    (type (make-type type-token)))
+                `(c-define-type ,id ,type)))))))
 
-(define (analyze-typedef token)
-  (let ((id-token (caddr token)))
-    (if (not (id-token? id-token))
-        (parser-error "analyze-typedef: invalid typedef id <" id-token ">")
-        (set! typedefs (cons (make-id id-token) typedefs)))))
+(assert (typedef-token? '(typedef const unsigned int fooint)))
+(assert (typedef-token? '(typedef fooint foobar)))
+(assert (make-typedef-expr '(typedef const unsigned int (id "fooint")))
+        '(c-define-type fooint unsigned-int))
+(assert (make-typedef-expr '(typedef struct (id "bar") (id "bar")))
+        '(c-define-type bar (struct "bar")))
 
+;; externs
 (define (extern-token? token)
   (and (pair? token)
        (eq? (car token) 'extern)))
+(assert (extern-token? '(extern unsigned int (id "foo") semicolon)))
 
+;; functions
 (define (function-token? token)
   (and (pair? token)
-       (type-token? (car token))
-       (id-token? (cadr token))
-       (eq? (caddr token) 'open-paren)
-       (type-token? (cadddr token))))
+       (receive (type rest)
+           (read-type-keywords (lambda (tok)
+                                 (eq? (cadr tok) 'open-paren))
+                        token)
+         (and (type-token? type)
+              (id-token? (car rest))
+              (> (length rest) 1)
+              (eq? (cadr rest) 'open-paren)))))
+(assert (function-token? '(unsigned int (id "foo") open-paren close-paren)))
 
 (define (make-function-expr token)
-  (let ((ret-type-token (car token))
-        (id-token (cadr token))
-        (type-tokens (reverse
-                      (let loop ((acc '())
-                                 (parts token))
-                        (if (null? parts)
-                            acc
-                            (case (car parts)
-                              ((open-paren comma)
-                               (loop (cons (cadr parts) acc)
-                                     (if (id-token? (caddr parts))
-                                         (cdddr parts)
-                                         (cddr parts))))
-                              (else (loop acc (cdr parts)))))))))
-    (let ((ret-type (make-type ret-type-token))
-          (id (make-id id-token))
-          (types (map make-type type-tokens)))
-      `(define ,id
-         (c-lambda ,(if (equal? types '(void)) '() types)
-                   ,ret-type
-                   ,(symbol->string id))))))
+  (receive (ret-type-token token)
+      (read-type-keywords (lambda (tok)
+                            (and (id-token? (car tok))
+                                 (eq? (cadr tok) 'open-paren)))
+                          token)
+    (let ((id-token (car token))
+          (type-tokens (let loop ((acc '())
+                                  (tok (cddr token)))
+                         (if (or (null? tok)
+                                 (eq? (car tok) 'close-paren))
+                             (reverse acc)
+                             (receive (head tail)
+                                 (split-token (lambda (tok)
+                                                (or (eq? (car tok) 'comma)
+                                                    (eq? (car tok) 'close-paren)))
+                                              (if (eq? (car tok) 'comma)
+                                                  (cdr tok)
+                                                  tok))
+                               (let ((num-ids (fold (lambda (el r)
+                                                      (if (id-token? el) (+ r 1) r))
+                                                    0 head)))
+                                 (loop (cons (if (> num-ids 1)
+                                                 (reverse (cdr (reverse head)))
+                                                 head)
+                                             acc)
+                                       tail)))))))
+      (let ((ret-type (make-type ret-type-token))
+            (id (make-id id-token))
+            (types (map make-type type-tokens)))
+        `(define ,id
+           (c-lambda ,(if (equal? types '(void)) '() types)
+                     ,ret-type
+                     ,(symbol->string id)))))))
 
-(define (pre-parse token)
-  (define (transformed)
-    (let loop ((acc '())
-               (token token))
-      (cond
-       ((null? token)
-        (reverse acc))
-       ((extern-token? token)
-        (loop acc (cdr token)))
-       ((type-keyword? (car token))
-        (receive (c-type-token next-token) (read-type-keywords token)
-          (loop (cons (cons 'type c-type-token) acc) next-token)))
-       ((pair? (car token))
-        (loop (cons (loop '() (car token)) acc)
-              (cdr token)))
-       (else
-        (loop (cons (car token) acc) (cdr token))))))
+(assert (make-function-expr '(unsigned int (id "foo")
+                                       open-paren float comma
+                                       unsigned int close-paren))
+        '(define foo (c-lambda (float unsigned-int) unsigned-int "foo")))
 
-  (let ((token (transformed)))
-    (if (typedef-token? token)
-        (analyze-typedef token))
-    token))
+(assert (make-function-expr '(unsigned int (id "foo")
+                                       open-paren (id "idgen") star (id "inst")
+                                       comma unsigned int close-paren))
+        '(define foo (c-lambda ((pointer idgen) unsigned-int) unsigned-int "foo")))
 
+;; parsing
 (define (parse input-port output-port)
   (define (maybe-write-expr expr)
     (if expr
@@ -208,7 +274,9 @@
   (let loop ()
     (let ((token (read input-port)))
       (if (not (eq? token #!eof))
-          (let ((token (pre-parse token)))
+          (let ((token (if (extern-token? token)
+                           (cdr token)
+                           token)))
             (cond
              ((constant-token? token)
               (maybe-write-expr (make-constant-expr token)))
@@ -218,13 +286,8 @@
               (maybe-write-expr (make-function-expr token))))
             (loop))))))
 
-(define (headers)
-  `(c-declare "#include \"gl.h\""))
+(define (headers output-port)
+  (write `(c-declare "#include \"gl.h\"") output-port))
 
-(write (headers) (current-output-port))
-(parse (current-input-port)
-       (current-output-port))
-
-
-
-
+(headers (current-output-port))
+(parse (current-input-port) (current-output-port))
