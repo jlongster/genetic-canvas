@@ -2,3 +2,4 @@
 entry.c
 engine.c
 Main.app
+*.o1

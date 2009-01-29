@@ -1,11 +1,10 @@
 
-(include "opengl-ffi/opengl-header.scm")
-
-(c-declare "#include \"GL/gl.h\"")
+(c-declare "#include \"gl/gl.h\"")
 (c-declare "#include \"string.h\"")
 
-(load (resource object-path "opengl-ffi/opengl"))
-(load (resource object-path "opengl-ffi/glu"))
+(include "ffi/gl/types.scm")
+(load (resource object-path "ffi/gl/gl"))
+(load (resource object-path "ffi/gl/glu"))
 (load (resource object-path "obj-loader"))
 
 (define medium #f)
