@@ -2,7 +2,7 @@
 (define (parse input-port output-port)
   (define (writer node)
     (write node output-port)
-    (newline))
+    (newline output-port))
   (let loop ((mode #f) (tokens '()))
     (let ((t (read input-port)))
       (case t
@@ -26,6 +26,3 @@
          #t)
         (else
          (loop mode (cons t tokens)))))))
-
-(parse (current-input-port)
-       (current-output-port))

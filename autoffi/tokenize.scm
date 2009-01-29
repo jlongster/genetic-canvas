@@ -13,6 +13,6 @@
   (let loop ()
     (let ((tok (lexer)))
       (write tok output-port)
-      (newline)
+      (newline output-port)
       (if (not (eq? tok 'stop))
           (loop)))))

@@ -71,6 +71,9 @@
     star
     struct))
 
+(define (primitive-type-keyword? token)
+  (memq token type-keywords))
+
 (define (type-keyword? token)
   (or (memq token type-keywords)
       (id-token? token)))
@@ -196,25 +199,40 @@
                              (receive (head tail)
                                  (split-token (lambda (tok)
                                                 (or (eq? (car tok) 'comma)
-                                                    (eq? (car tok) 'close-paren)))
+                                                    (eq? (car tok) 'close-paren)
+                                                    (eq? (car tok) 'open-paren)))
                                               (if (eq? (car tok) 'comma)
                                                   (cdr tok)
                                                   tok))
-                               (let ((num-ids (fold (lambda (el r)
-                                                      (if (id-token? el) (+ r 1) r))
-                                                    0 head)))
-                                 (loop (cons (if (> num-ids 1)
-                                                 (reverse (cdr (reverse head)))
-                                                 head)
-                                             acc)
-                                       tail)))))))
-      (let ((ret-type (make-type ret-type-token))
-            (id (make-id id-token))
-            (types (map make-type type-tokens)))
-        `(define ,id
-           (c-lambda ,(if (equal? types '(void)) '() types)
-                     ,ret-type
-                     ,(symbol->string id)))))))
+                               (if (eq? (car tail) 'open-paren)
+                                   (begin (parser-error "invalid function argument type "
+                                                        "(function callbacks are not supported) ")
+                                          (parser-error "token: " token)
+                                          (loop '() '()))
+                                   (let ((has-keyword? (fold (lambda (el r)
+                                                               (or (primitive-type-keyword? el)
+                                                                   r))
+                                                             #f
+                                                             head))
+                                         (num-ids (fold (lambda (el r)
+                                                          (if (id-token? el) (+ r 1) r))
+                                                        0
+                                                        head)))
+                                     (loop (cons (if (or (and has-keyword?
+                                                              (= num-ids 1))
+                                                         (= num-ids 2))
+                                                     (reverse (cdr (reverse head)))
+                                                     head)
+                                                 acc)
+                                           tail))))))))
+      (if (not (null? type-tokens))
+          (let ((ret-type (make-type ret-type-token))
+                (id (make-id id-token))
+                (types (map make-type type-tokens)))
+            `(define ,id
+               (c-lambda ,(if (equal? types '(void)) '() types)
+                         ,ret-type
+                         ,(symbol->string id))))))))
 
 (assert (make-function-expr '(unsigned int (id "foo")
                                        open-paren float comma
@@ -232,7 +250,7 @@
     (if expr
         (begin
           (write expr output-port)
-          (newline))))
+          (newline output-port))))
   (let loop ()
     (let ((token (read input-port)))
       (if (not (eq? token #!eof))
