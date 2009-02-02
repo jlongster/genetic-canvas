@@ -8,7 +8,7 @@
 		<string key="IBDocument.HIToolboxVersion">352.00</string>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
-			<integer value="367"/>
+			<integer value="368"/>
 			<integer value="29"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
@@ -1073,7 +1073,7 @@
 			<object class="NSWindowTemplate" id="513744381">
 				<int key="NSWindowStyleMask">15</int>
 				<int key="NSWindowBacking">2</int>
-				<string key="NSWindowRect">{{513, 583}, {441, 263}}</string>
+				<string key="NSWindowRect">{{513, 448}, {315, 398}}</string>
 				<int key="NSWTFlags">603983872</int>
 				<string key="NSWindowTitle">Prerender</string>
 				<string key="NSWindowClass">MainOpenGLWindow</string>
@@ -1088,7 +1088,7 @@
 							<reference key="NSNextResponder" ref="414427165"/>
 							<int key="NSvFlags">1292</int>
 							<object class="NSPSMatrix" key="NSDrawMatrix"/>
-							<string key="NSFrameSize">{441, 263}</string>
+							<string key="NSFrameSize">{315, 398}</string>
 							<reference key="NSSuperview" ref="414427165"/>
 							<object class="NSOpenGLPixelFormat" key="NSPixelFormat">
 								<object class="NSMutableData" key="NSPixelAttributes">
@@ -1097,7 +1097,7 @@
 							</object>
 						</object>
 					</object>
-					<string key="NSFrameSize">{441, 263}</string>
+					<string key="NSFrameSize">{315, 398}</string>
 					<reference key="NSSuperview"/>
 				</object>
 				<string key="NSScreenRect">{{0, 0}, {1440, 878}}</string>
@@ -2903,9 +2903,9 @@
 					<reference ref="9"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<reference ref="9"/>
-					<string>{{285, 484}, {441, 263}}</string>
+					<string>{{285, 349}, {315, 398}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
-					<string>{{285, 484}, {441, 263}}</string>
+					<string>{{285, 349}, {315, 398}}</string>
 					<reference ref="9"/>
 					<string>{{11, 666}, {480, 270}}</string>
 					<string>{3.40282e+38, 3.40282e+38}</string>

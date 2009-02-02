@@ -182,7 +182,7 @@
 (define gluEndPolygon (c-lambda ((pointer GLUtesselator)) void "gluEndPolygon"))
 (define gluEndSurface (c-lambda ((pointer GLUnurbs)) void "gluEndSurface"))
 (define gluEndTrim (c-lambda ((pointer GLUnurbs)) void "gluEndTrim"))
-(define gluErrorString (c-lambda (GLenum) (pointer GLubyte) "gluErrorString"))
+(define gluErrorString (c-lambda (GLenum) char-string "gluErrorString"))
 (define gluGetNurbsProperty (c-lambda ((pointer GLUnurbs) GLenum (pointer GLfloat)) void "gluGetNurbsProperty"))
 (define gluGetString (c-lambda (GLenum) (pointer GLubyte) "gluGetString"))
 (define gluGetTessProperty (c-lambda ((pointer GLUtesselator) GLenum (pointer GLdouble)) void "gluGetTessProperty"))

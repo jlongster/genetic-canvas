@@ -34,5 +34,5 @@
 (define (resource . args)
   (apply
    join-paths
-   (cons "/Users/james/projects/scheme/graphics-gambit/"
+   (cons "/Users/james/projects/scheme/artbot/"
          args)))

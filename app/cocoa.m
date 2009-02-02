@@ -1,6 +1,7 @@
 
 #define ___VERSION 403002
 #include "gambit.h"
+#include "IL/il.h"
 #import <Cocoa/Cocoa.h>
 
 // From Scheme, going into Cocoa
@@ -18,7 +19,6 @@ int cocoa_entry(___SCMOBJ args) {
 	}
 
 	int argc = i+1;
-				 
 
 	// TODO: probably need to free() the individual strings,
 	// need to look at ___SCMOBJ_to_CHARSTRING

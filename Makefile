@@ -22,17 +22,21 @@ main: app/link_.c app/cocoa.m app/glview.m app/glwindow.m
 		-I/usr/local/Gambit-C/current/include \
 		-framework Cocoa -framework OpenGL \
 		-lgambc \
+	 	-lIL \
 		-sectcreate __TEXT __info_plist app/Info.plist
 
-lib/opengl-ffi/opengl.o1: lib/opengl-ffi/opengl.scm
-	rm -f lib/opengl-ffi/opengl.o1
-	gsc lib/opengl-ffi/opengl.scm
-	mv lib/opengl-ffi/opengl.o1 lib/opengl-ffi/opengl.o1
+lib/ffi/gl/gl.o1: lib/ffi/gl/gl.scm
+	rm -f lib/ffi/gl/gl.o1
+	gsc lib/ffi/gl/gl.scm
 
-lib/opengl-ffi/glu.o1: lib/opengl-ffi/glu.scm
-	rm -f lib/opengl-ffi/glu.o1
-	gsc lib/opengl-ffi/glu.scm
-	mv lib/opengl-ffi/glu.o1 lib/opengl-ffi/glu.o1
+lib/ffi/gl/glu.o1: lib/ffi/gl/glu.scm
+	rm -f lib/ffi/gl/glu.o1
+	gsc lib/ffi/gl/glu.scm
+
+lib/ffi/freeimage.o1: lib/ffi/freeimage.scm
+	rm -f lib/ffi/freeimage.o1
+	gsc -ld-options "-L/opt/local/lib -lfreeimage" \
+		lib/ffi/freeimage.scm
 
 lib/engine.o1: lib/engine.scm
 	rm -f lib/engine.o1
