@@ -11,5 +11,8 @@
 (c-define (init-engine-c) () void "init_engine" ""
   (init-engine))
 
+(c-define (shutdown-engine-c) () void "shutdown_engine" ""
+  (shutdown-engine))
+
 (c-define (run-frame-c) () void "run_frame" ""
   (run-frame))

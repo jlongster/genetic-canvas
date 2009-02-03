@@ -48,7 +48,6 @@
 -(void) drawRect: (NSRect)bounds {
 	run_frame();
 	[[self openGLContext] flushBuffer];
-	fflush(stdout);
 }
 
 @end

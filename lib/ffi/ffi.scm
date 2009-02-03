@@ -36,11 +36,17 @@ end-c-code
   (c-lambda ((pointer unsigned-char) int) unsigned-char
             "___result = ___arg1[___arg2];"))
 
-(define debug-u8*
-  (c-lambda ((pointer unsigned-char)) void #<<end-c-code
+(define sum-u8*
+  (c-lambda ((pointer unsigned-char) int) int #<<end-c-code
    unsigned char *buf = ___arg1;
+   int len=___arg2;
    int i=0;
-   while(i<300*300) { if(buf[i]!=0) printf("%d:",buf[i]); i++; }
+   int acc=0;
+   while(i<len) {
+	   acc+=(int)buf[i];
+	   i++;
+   }
+   ___result = acc;
 end-c-code
 ))
 
@@ -51,3 +57,6 @@ end-c-code
 (define uint*-ref
   (c-lambda ((pointer unsigned-int) int) unsigned-int
             "___result = *(___arg1+___arg2);"))
+
+(define free
+  (c-lambda ((pointer void #f)) void "free((void*)___arg1);"))

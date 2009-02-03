@@ -15,15 +15,20 @@ lib/init.c: lib/init.scm lib/resources.scm
 app/link_.c: app/entry.c lib/init.c
 	gsc -link -o app/link_.c lib/init.c app/entry.c
 
-main: app/link_.c app/cocoa.m app/glview.m app/glwindow.m
+main: app/link_.c app/cocoa.m app/glview.m app/glwindow.m app/app.m
 	gcc -o main app/link_.c lib/init.c app/entry.c \
 		app/cocoa.m app/glview.m \
 		app/glwindow.m \
+		app/app.m \
 		-I/usr/local/Gambit-C/current/include \
 		-framework Cocoa -framework OpenGL \
 		-lgambc \
 	 	-lIL \
 		-sectcreate __TEXT __info_plist app/Info.plist
+
+lib/ffi/ffi.o1: lib/ffi/ffi.scm
+	rm -f lib/ffi/ffi.o1
+	gsc lib/ffi/ffi.scm
 
 lib/ffi/gl/gl.o1: lib/ffi/gl/gl.scm
 	rm -f lib/ffi/gl/gl.o1
