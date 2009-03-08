@@ -32,11 +32,11 @@ lib/ffi/ffi.o1: lib/ffi/ffi.scm
 
 lib/ffi/gl/gl.o1: lib/ffi/gl/gl.scm
 	rm -f lib/ffi/gl/gl.o1
-	gsc lib/ffi/gl/gl.scm
+	gsc -cc-options '-framework OpenGL' lib/ffi/gl/gl.scm
 
 lib/ffi/gl/glu.o1: lib/ffi/gl/glu.scm
 	rm -f lib/ffi/gl/glu.o1
-	gsc lib/ffi/gl/glu.scm
+	gsc -cc-options '-framework OpenGL' lib/ffi/gl/glu.scm
 
 lib/ffi/freeimage.o1: lib/ffi/freeimage.scm
 	rm -f lib/ffi/freeimage.o1
@@ -76,6 +76,17 @@ Main.app/Contents/MacOS/main: main
 
 Main.app: Main.app/Contents/MacOS/main \
 	  Main.app/Contents/Resources/main.nib
+
+## testing
+test: docs/engine.sw
+	sweb -s docs/engine.sw > docs/engine.scm
+	gsi -e '(include "lib/util/tests.scm")' \
+		-e '(include "lib/resources.scm")' \
+		docs/engine.scm
+
+pdf: docs/engine.sw
+	sweb -w docs/engine.sw > docs/engine.tex
+	pdflatex -output-directory=docs docs/engine.tex
 
 ## cleanup
 clean: clean-objects

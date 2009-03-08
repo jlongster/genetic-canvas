@@ -1,5 +1,5 @@
 
-(define object-path "lib")
+(define lib-path "lib")
 (define resource-path "resources")
 
 (define (path-trim str)

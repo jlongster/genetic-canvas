@@ -1,4 +1,6 @@
 
+(c-declare "#include <sys/time.h>")
+(c-declare "#include <time.h>")
 (c-declare "#include <stdlib.h>")
 (c-declare "#include <string.h>")
 
@@ -37,13 +39,13 @@ end-c-code
             "___result = ___arg1[___arg2];"))
 
 (define sum-u8*
-  (c-lambda ((pointer unsigned-char) int) int #<<end-c-code
+  (c-lambda ((pointer unsigned-char) int) unsigned-long #<<end-c-code
    unsigned char *buf = ___arg1;
    int len=___arg2;
    int i=0;
-   int acc=0;
+   unsigned long acc=0;
    while(i<len) {
-	   acc+=(int)buf[i];
+	   acc+=buf[i];
 	   i++;
    }
    ___result = acc;
