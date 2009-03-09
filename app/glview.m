@@ -18,8 +18,7 @@
 }
 
 -(void) prepareOpenGL {
-	NSRect bounds = [self bounds];
-	init_opengl((unsigned int)NSWidth(bounds), (unsigned int)NSHeight(bounds));
+	init_opengl();
 }
 
 -(BOOL) acceptsFirstResponder {
@@ -42,7 +41,9 @@
 	[[NSRunLoop currentRunLoop] addTimer:timer forMode:NSDefaultRunLoopMode];
 	[[NSRunLoop currentRunLoop] addTimer:timer forMode:NSEventTrackingRunLoopMode];
 	[self setNeedsDisplay:YES];
-	init_engine();
+
+    NSRect bounds = [self bounds];
+	init_engine((unsigned int)NSWidth(bounds), (unsigned int)NSHeight(bounds));
 }
 
 -(void) drawRect: (NSRect)bounds {

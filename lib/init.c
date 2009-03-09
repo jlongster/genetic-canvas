@@ -17,7 +17,7 @@
 (
 "init-engine-c"
 "init-opengl-c"
-"object-path"
+"lib-path"
 "resource-path"
 "run-frame-c"
 "shutdown-engine-c"
@@ -66,9 +66,9 @@ ___NEED_GLO(___G_init_2d_engine_2d_c)
 ___NEED_GLO(___G_init_2d_opengl)
 ___NEED_GLO(___G_init_2d_opengl_2d_c)
 ___NEED_GLO(___G_join_2d_paths)
+___NEED_GLO(___G_lib_2d_path)
 ___NEED_GLO(___G_load)
 ___NEED_GLO(___G_null_3f_)
-___NEED_GLO(___G_object_2d_path)
 ___NEED_GLO(___G_path_2d_trim)
 ___NEED_GLO(___G_resource)
 ___NEED_GLO(___G_resource_2d_path)
@@ -86,7 +86,7 @@ ___DEF_GLO(0," init")
 ___DEF_GLO(1,"init-engine-c")
 ___DEF_GLO(2,"init-opengl-c")
 ___DEF_GLO(3,"join-paths")
-___DEF_GLO(4,"object-path")
+___DEF_GLO(4,"lib-path")
 ___DEF_GLO(5,"path-trim")
 ___DEF_GLO(6,"resource")
 ___DEF_GLO(7,"resource-path")
@@ -147,12 +147,26 @@ ___END_SUB
 #define ___C_LBL_shutdown_engine 83
 #define ___C_LBL_run_frame 86
 
- void init_opengl ___P((unsigned int ___arg1,unsigned int ___arg2),(___arg1,___arg2)
+ void init_opengl ___PVOID
+{
+#define ___NARGS 0
+___BEGIN_SFUN_VOID(___MLBL(___C_LBL_init_opengl))
+___BEGIN_SFUN_BODY
+___SFUN_CALL_VOID
+___SFUN_SET_RESULT_VOID
+___END_SFUN_BODY
+___SFUN_ERROR_VOID
+___SFUN_SET_RESULT_VOID
+___END_SFUN_VOID
+#undef ___NARGS
+}
+
+ void init_engine ___P((unsigned int ___arg1,unsigned int ___arg2),(___arg1,___arg2)
 unsigned int ___arg1;
 unsigned int ___arg2;)
 {
 #define ___NARGS 2
-___BEGIN_SFUN_VOID(___MLBL(___C_LBL_init_opengl))
+___BEGIN_SFUN_VOID(___MLBL(___C_LBL_init_engine))
 ___BEGIN_SFUN_ARG(1,___ARG1)
 ___BEGIN_SFUN_UINT_TO_SCMOBJ(___arg1,___ARG1,1)
 ___BEGIN_SFUN_ARG(2,___ARG2)
@@ -167,20 +181,6 @@ ___END_SFUN_UINT_TO_SCMOBJ(___arg2,___ARG2,2)
 ___END_SFUN_ARG(2)
 ___END_SFUN_UINT_TO_SCMOBJ(___arg1,___ARG1,1)
 ___END_SFUN_ARG(1)
-___SFUN_ERROR_VOID
-___SFUN_SET_RESULT_VOID
-___END_SFUN_VOID
-#undef ___NARGS
-}
-
- void init_engine ___PVOID
-{
-#define ___NARGS 0
-___BEGIN_SFUN_VOID(___MLBL(___C_LBL_init_engine))
-___BEGIN_SFUN_BODY
-___SFUN_CALL_VOID
-___SFUN_SET_RESULT_VOID
-___END_SFUN_BODY
 ___SFUN_ERROR_VOID
 ___SFUN_SET_RESULT_VOID
 ___END_SFUN_VOID
@@ -340,7 +340,7 @@ ___DEF_SLBL(0,___L0__20_init)
    ___IF_NARGS_EQ(0,___NOTHING)
    ___WRONG_NARGS(0,0,0,0)
 ___DEF_GLBL(___L__20_init)
-   ___SET_GLO(4,___G_object_2d_path,___SUB(0))
+   ___SET_GLO(4,___G_lib_2d_path,___SUB(0))
    ___SET_GLO(7,___G_resource_2d_path,___SUB(1))
    ___SET_GLO(5,___G_path_2d_trim,___PRC(7))
    ___SET_GLO(3,___G_join_2d_paths,___PRC(33))
@@ -1395,12 +1395,12 @@ ___DEF_P_HLBL(___L1_init_2d_opengl_2d_c)
 ___END_P_HLBL
 ___BEGIN_P_SW
 ___DEF_SLBL(0,___L0_init_2d_opengl_2d_c)
-   ___IF_NARGS_EQ(2,___NOTHING)
-   ___WRONG_NARGS(0,2,0,0)
+   ___IF_NARGS_EQ(0,___NOTHING)
+   ___WRONG_NARGS(0,0,0,0)
 ___DEF_GLBL(___L_init_2d_opengl_2d_c)
    ___POLL(1)
 ___DEF_SLBL(1,___L1_init_2d_opengl_2d_c)
-   ___JUMPGLOSAFE(___SET_NARGS(2),17,___G_init_2d_opengl)
+   ___JUMPGLOSAFE(___SET_NARGS(0),17,___G_init_2d_opengl)
 ___END_P_SW
 ___END_P_COD
 
@@ -1422,12 +1422,12 @@ ___DEF_P_HLBL(___L1_init_2d_engine_2d_c)
 ___END_P_HLBL
 ___BEGIN_P_SW
 ___DEF_SLBL(0,___L0_init_2d_engine_2d_c)
-   ___IF_NARGS_EQ(0,___NOTHING)
-   ___WRONG_NARGS(0,0,0,0)
+   ___IF_NARGS_EQ(2,___NOTHING)
+   ___WRONG_NARGS(0,2,0,0)
 ___DEF_GLBL(___L_init_2d_engine_2d_c)
    ___POLL(1)
 ___DEF_SLBL(1,___L1_init_2d_engine_2d_c)
-   ___JUMPGLOSAFE(___SET_NARGS(0),16,___G_init_2d_engine)
+   ___JUMPGLOSAFE(___SET_NARGS(2),16,___G_init_2d_engine)
 ___END_P_SW
 ___END_P_COD
 
@@ -1566,10 +1566,10 @@ ___BEGIN_LBL
 ,___DEF_LBL_RET(___H_resource,___IFD(___RETI,0,0,0x3fL))
 ,___DEF_LBL_RET(___H_resource,___IFD(___RETI,4,0,0x3f1L))
 ,___DEF_LBL_INTRO(___H_init_2d_opengl_2d_c,0,___REF_FAL,2,init_opengl)
-,___DEF_LBL_PROC(___H_init_2d_opengl_2d_c,2,0)
+,___DEF_LBL_PROC(___H_init_2d_opengl_2d_c,0,0)
 ,___DEF_LBL_RET(___H_init_2d_opengl_2d_c,___IFD(___RETI,0,0,0x3fL))
 ,___DEF_LBL_INTRO(___H_init_2d_engine_2d_c,0,___REF_FAL,2,init_engine)
-,___DEF_LBL_PROC(___H_init_2d_engine_2d_c,0,0)
+,___DEF_LBL_PROC(___H_init_2d_engine_2d_c,2,0)
 ,___DEF_LBL_RET(___H_init_2d_engine_2d_c,___IFD(___RETI,0,0,0x3fL))
 ,___DEF_LBL_INTRO(___H_shutdown_2d_engine_2d_c,0,___REF_FAL,2,shutdown_engine)
 ,___DEF_LBL_PROC(___H_shutdown_2d_engine_2d_c,0,0)
