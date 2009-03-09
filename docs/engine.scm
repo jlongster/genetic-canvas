@@ -4,6 +4,23 @@
 ;; DO NOT EDIT please.                          ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (load "lib/engine")
+(init-engine)
+(define test-image #f)
+(define-test make-image
+  (set! test-image (make-image "docs/test.jpg"))
+  (assert-equal (image-width test-image) 100)
+  (assert-equal (image-height test-image) 100)
+  (assert-equal (char->integer
+                 (u8*-ref (image-rgb-bytes test-image) 0)) 25)
+  (assert-equal (char->integer
+                 (u8*-ref (image-rgb-bytes test-image) 1)) 51)
+  (assert-equal (char->integer
+                 (u8*-ref (image-rgb-bytes test-image) 2)) 76))
+(define-test image-fetch-rgb
+  (let ((color (image-fetch-rgb test-image 55 59)))
+    (assert-equal (vec3-x color) 239)
+    (assert-equal (vec3-y color) 255)
+    (assert-equal (vec3-z color) 255)))
 (define-test selection-rws
   (let ((pop (make-population 3)))
     (genotype-fitness-set! (car pop) 50)
@@ -31,3 +48,10 @@
     (receive (new-gt1 new-gt2) (genotype-crossover gt1 gt2 7)
       (assert-equal (genotype-data new-gt1) '(1 2 3 4 5 13))
       (assert-equal (genotype-data new-gt2) '(6 7 8 9 10 11 12)))))
+(define-test midpoint
+  (let ((point (midpoint (make-vec2 0 10)
+                         (make-vec2 10 0)
+                         (make-vec2 0 0))))
+    (assert-equal (vec2-x point) 2.5)
+    (assert-equal (vec2-y point) 2.5)))
+(shutdown-engine)
