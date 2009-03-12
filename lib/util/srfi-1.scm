@@ -1,3 +1,8 @@
+
+(declare (block)
+         (standard-bindings)
+         (extended-bindings))
+
 ;;; SRFI-1 list-processing library 			-*- Scheme -*-
 ;;; Reference implementation
 ;;;

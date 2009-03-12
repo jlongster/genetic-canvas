@@ -1,3 +1,8 @@
+
+(declare (block)
+         (standard-bindings)
+         (extended-bindings))
+
 ;;;============================================================================
 
 ;;; File: "Sort.scm", Time-stamp: <2008-03-18 15:21:35 feeley>
