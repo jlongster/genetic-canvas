@@ -10,7 +10,7 @@
 							  styleMask:NSBorderlessWindowMask | NSTitledWindowMask 
 							  backing:bufferingType
 							  defer:flag];
-	[window setLevel:NSFloatingWindowLevel];
+	// [window setLevel:NSFloatingWindowLevel];
 	//[window setOpaque:NO];
 	//[window setAlphaValue:0.6];
 	//[window setAcceptsMouseMovedEvents:YES];
