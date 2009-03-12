@@ -2,6 +2,7 @@
 entry.c
 engine.c
 Main.app
+main
 *.o1
 /docs/*.aux
 /docs/*.log
