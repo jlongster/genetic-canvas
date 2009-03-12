@@ -158,6 +158,9 @@ by the three points (2d vectors).
     (assert-equal (vec2-x point) 2.5)
     (assert-equal (vec2-y point) 2.5)))
 
+\section{Benchmarks}
+    
 (shutdown-engine)
 
 \end{document}
+
