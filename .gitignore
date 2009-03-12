@@ -3,3 +3,8 @@ entry.c
 engine.c
 Main.app
 *.o1
+/docs/*.aux
+/docs/*.log
+/docs/*.pdf
+/docs/*.scm
+/docs/*.tex

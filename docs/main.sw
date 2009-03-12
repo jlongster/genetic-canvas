@@ -11,9 +11,9 @@ First we load up the required modules.  We will be testing the main engine
 module.
 
 (load "lib/engine")
-(init-engine)
+(init-engine 100 100)
 
-\section{Images \& Textures}
+\section{Images \& Textures (lib/images.scm)}
 
 \subsection{image type}
 
@@ -64,7 +64,7 @@ position.  The bottom-left corner defines (0,0).
     (assert-equal (vec3-y color) 255)
     (assert-equal (vec3-z color) 255)))
 
-\section{Selection Procedures}
+\section{Genetic Operators (lib/genetic-operators.scm)}
 
 \subsection{(selection-rws pop f)}
 
@@ -104,8 +104,6 @@ selection behaviour (higher spread, more variance, and vice versa).
       (assert-equal (vector-ref vec-pop 10) (cadr pop))
       (assert-equal (vector-ref vec-pop 15) (caddr pop)))))
 
-\section{Crossover procedures}
-
 \subsection{(genotype-crossover gt1 gt2 \#!optional rate-or-pt)}
 
 Implements the crossover operator. It simple takes two genotypes,
@@ -128,8 +126,6 @@ will generate this randomly.
       (assert-equal (genotype-data new-gt1) '(1 2 3 4 5 13))
       (assert-equal (genotype-data new-gt2) '(6 7 8 9 10 11 12)))))
 
-\section{Mutation procedures}
-
 \subsection{(genotype-mutate gt \#!optional rate)}
 
 Implements the mutation operator. Currently, this simply shuffles each
@@ -138,25 +134,15 @@ determined to be mutated according to the mutation rate). The default
 mutation rate is \begin{math}.01\end{math}, which can be overridden by
 the second parameter.
 
-\section{Vectors}
+\section{Vectors (lib/vectors.scm)}
 
 Basic functionality for 2d and 3d vectors.
 
 TODO:  add vector unit tests
 
-\section{Utility}
+\section{Engine (lib/engine.scm)}
 
-\subsection{(midpoint point1 point2 point3)}
-
-Returns a point which vaguely approximates the middle the triangle formed
-by the three points (2d vectors).
-
-(define-test midpoint
-  (let ((point (midpoint (make-vec2 0 10)
-                         (make-vec2 10 0)
-                         (make-vec2 0 0))))
-    (assert-equal (vec2-x point) 2.5)
-    (assert-equal (vec2-y point) 2.5)))
+Fires up the real engine.
 
 \section{Benchmarks}
     
