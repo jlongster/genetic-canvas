@@ -3,7 +3,7 @@ entry.c
 engine.c
 Main.app
 main
-*.o1
+*.o*
 /docs/*.aux
 /docs/*.log
 /docs/*.pdf

@@ -78,13 +78,30 @@ Main.app: Main.app/Contents/MacOS/main \
 	  Main.app/Contents/Resources/main.nib
 
 ## testing
-test: docs/engine.sw
-	sweb -s docs/engine.sw > docs/engine.scm
+test: docs/main.sw
+	sweb -s docs/main.sw > docs/main.scm
 	gsi -e '(include "lib/util/tests.scm")' \
 		-e '(include "lib/resources.scm")' \
-		docs/engine.scm
+		docs/main.scm
 
-pdf: docs/engine.sw
+test-engine: docs/engine.sw
+	sweb -s docs/engine.sw > docs/engine.scm
+	gsc -c docs/engine.scm
+	gsc -link -o docs/engine_.c docs/engine.c app/entry.c
+	gcc -o docs/main docs/engine_.c docs/engine.c app/entry.c \
+		app/cocoa.m app/glview.m \
+		app/glwindow.m \
+		app/app.m \
+		-I/usr/local/Gambit-C/current/include \
+		-framework Cocoa -framework OpenGL \
+		-lgambc \
+	 	-lIL \
+		-sectcreate __TEXT __info_plist docs/Info.plist
+	docs/main
+
+pdf: docs/main.sw docs/engine.sw
+	sweb -w docs/main.sw > docs/main.tex
+	pdflatex -output-directory=docs docs/main.tex
 	sweb -w docs/engine.sw > docs/engine.tex
 	pdflatex -output-directory=docs docs/engine.tex
 

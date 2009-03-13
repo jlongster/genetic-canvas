@@ -75,8 +75,12 @@
           f)))
 
 (define (mutate-point point)
-  (vec2-add point (make-vec2 (* (- (random-real) .5) 100)
-                             (* (- (random-real) .5) 100))))
+  (let ((rand (random-integer 2))
+        (point (make-vec2 (vec2-x point) (vec2-y point))))
+    (if (= rand 0)
+        (vec2-x-set! point (+ (vec2-x point) (* (- (random-real) .5) 10)))
+        (vec2-y-set! point (+ (vec2-y point) (* (- (random-real) .5) 10))))
+    point))
 
 (define (mutate-real real)
   (saturate (+ (* (half-negate (random-real)))
@@ -88,50 +92,46 @@
 
 (define mutators
   (list (make-mutator
-         (lambda (tri)
-           (triangle-point1-set! tri
-            (mutate-point (triangle-point1 tri))))
+         (lambda (poly)
+           (let* ((points (list->vector (polygon-points poly)))
+                  (idx (random-integer (vector-length points))))
+             (vector-set! points idx
+                          (mutate-point (vector-ref points idx)))
+             (polygon-points-set! poly (vector->list points))))
+         4)
+        (make-mutator
+         (lambda (poly)
+           (polygon-red-set! poly
+            (mutate-real (polygon-red poly))))
          1)
         (make-mutator
-         (lambda (tri)
-           (triangle-point2-set! tri
-            (mutate-point (triangle-point2 tri))))
+         (lambda (poly)
+           (polygon-green-set! poly
+            (mutate-real (polygon-green poly))))
          1)
         (make-mutator
-         (lambda (tri)
-           (triangle-point3-set! tri
-            (mutate-point (triangle-point3 tri))))
+         (lambda (poly)
+           (polygon-blue-set! poly
+            (mutate-real (polygon-blue poly))))
          1)
         (make-mutator
-         (lambda (tri)
-           (triangle-red-set! tri
-            (mutate-real (triangle-red tri))))
-         1)
-        (make-mutator
-         (lambda (tri)
-           (triangle-green-set! tri
-            (mutate-real (triangle-green tri))))
-         1)
-        (make-mutator
-         (lambda (tri)
-           (triangle-blue-set! tri
-            (mutate-real (triangle-blue tri))))
-         1)
-        (make-mutator
-         (lambda (tri)
-           (triangle-alpha-set! tri
-            (mutate-real (triangle-alpha tri))))
+         (lambda (poly)
+           (polygon-alpha-set! poly
+            (mutate-real (polygon-alpha poly))))
          1)))
 
-(define mutator-count (length mutators))
+(define mutator-weight-range (fold (lambda (el acc)
+                                     (+ acc (mutator-weight el)))
+                                   0
+                                   mutators))
 
-(define (mutate-triangle! triangle)
+(define (mutate-polygon! polygon)
   (let ((mutator (selection-rws mutators
-                                (random-integer mutator-count)
+                                (random-integer mutator-weight-range)
                                 mutator-weight)))
-    ((mutator-func mutator) triangle)))
+    ((mutator-func mutator) polygon)))
 
-(define (genotype-mutate gt #!optional rate)
+(define (genotype-mutate-heavy gt #!optional rate)
   (make-genotype
    (let loop ((acc '())
               (data (genotype-data gt)))
@@ -139,16 +139,28 @@
          (reverse acc)
          (loop (cons (if (< (random-real)
                             (or rate default-mutation-rate))
-                         (let* ((tri (car data))
-                                (new-tri (make-triangle (triangle-point1 tri)
-                                                        (triangle-point2 tri)
-                                                        (triangle-point3 tri)
-                                                        (triangle-red tri)
-                                                        (triangle-green tri)
-                                                        (triangle-blue tri)
-                                                        (triangle-alpha tri))))
-                           (mutate-triangle! new-tri)
-                           new-tri)
+                         (let* ((poly (car data))
+                                (new-poly (make-polygon (polygon-points poly)
+                                                        (polygon-red poly)
+                                                        (polygon-green poly)
+                                                        (polygon-blue poly)
+                                                        (polygon-alpha poly))))
+                           (mutate-polygon! new-poly)
+                           new-poly)
                          (car data))
                      acc)
                (cdr data))))))
+
+(define (genotype-mutate-light gt #!optional rate)
+  (make-genotype
+   (let* ((polys (list->vector (genotype-data gt)))
+          (idx (random-integer (vector-length polys)))
+          (poly (vector-ref polys idx))
+          (new-poly (make-polygon (polygon-points poly)
+                                  (polygon-red poly)
+                                  (polygon-green poly)
+                                  (polygon-blue poly)
+                                  (polygon-alpha poly))))
+     (mutate-polygon! new-poly)
+     (vector-set! polys idx new-poly)
+     (vector->list polys))))

@@ -8,7 +8,8 @@
 (c-define (init-opengl-c) () void "init_opengl" ""
   (init-opengl))
 
-(c-define (init-engine-c width height) (unsigned-int unsigned-int) void "init_engine" ""
+(c-define (init-engine-c width height)
+    (unsigned-int unsigned-int) void "init_engine" ""
   (init-engine width height))
 
 (c-define (shutdown-engine-c) () void "shutdown_engine" ""

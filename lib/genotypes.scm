@@ -3,10 +3,8 @@
 
 ;; Genotype
 
-(define-structure triangle
-  point1
-  point2
-  point3
+(define-structure polygon
+  points
   red
   green
   blue
@@ -33,39 +31,36 @@
                                 (* (random-real)
                                    (exact->inexact (current-height))))))
                (random-count (+ (random-integer 4) 3)))
-           (loop (cons (make-triangle
-                        (random-point)
-                        (random-point)
-                        (random-point)
-                        (random-real)
-                        (random-real)
-                        (random-real)
-                        (random-real))
+           (loop (cons (make-polygon
+                        (unfold (lambda (i) (>= i random-count))
+                                (lambda (i) (random-point))
+                                (lambda (i) (+ i 1))
+                                0)
+                        0. 0. 0. 0.)
                        acc)
                  (+ i 1)))
          acc))
    0.0))
 
-(define (%%render-triangle tri)
-  (let ((point1 (triangle-point1 tri))
-        (point2 (triangle-point2 tri))
-        (point3 (triangle-point3 tri)))
-    (glColor4f (triangle-red tri)
-               (triangle-green tri)
-               (triangle-blue tri)
-               (triangle-alpha tri))
-    (glVertex2f (vec2-x point1) (vec2-y point1))
-    (glVertex2f (vec2-x point2) (vec2-y point2))
-    (glVertex2f (vec2-x point3) (vec2-y point3))))
+(define (%%render-polygon tri)
+  (glBegin GL_POLYGON)
+  (glColor4f (polygon-red tri)
+             (polygon-green tri)
+             (polygon-blue tri)
+             (polygon-alpha tri))
+  (let loop ((tail (polygon-points tri)))
+    (if (not (null? tail))
+        (let ((point (car tail)))
+          (glVertex2f (vec2-x point) (vec2-y point))
+          (loop (cdr tail)))))
+  (glEnd))
 
 (define (render-genotype gt)
-  (glBegin GL_TRIANGLES)
   (let loop ((tris (genotype-data gt)))
     (if (not (null? tris))
         (begin
-          (%%render-triangle (car tris))
-          (loop (cdr tris)))))
-  (glEnd))
+          (%%render-polygon (car tris))
+          (loop (cdr tris))))))
 
 (define (run-genotype gt)
   ;; Draw genotype
@@ -141,13 +136,13 @@
             (cond
              ((null? tail) acc)
              ((eq? (cdr tail) '())
-              (reverse (cons (genotype-mutate (car tail)) acc)))
+              (reverse (cons (genotype-mutate-light (car tail)) acc)))
              (else
               (let ((gt1 (car tail))
                     (gt2 (cadr tail))
                     (tail (cddr tail)))
                 (receive (new-gt1 new-gt2) (genotype-crossover gt1 gt2)
-                  (loop (cons (genotype-mutate new-gt2)
-                              (cons (genotype-mutate new-gt1) acc))
+                  (loop (cons (genotype-mutate-light new-gt2)
+                              (cons (genotype-mutate-light new-gt1) acc))
                         tail)))))))))
 

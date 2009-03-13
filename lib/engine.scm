@@ -48,7 +48,7 @@
   (current-height (exact->inexact height))
 
   (set! source-image (make-image (resource "resources/monalisa.jpg")))
-  (set! population (make-population 4))
+  (set! population (make-population 2))
   (freeimage-initialize #f))
 
 (define (shutdown-engine)
