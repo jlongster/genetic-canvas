@@ -46,10 +46,8 @@ lib/ffi/freeimage.o1: lib/ffi/freeimage.scm
 lib/engine.o1: lib/engine.scm lib/genotypes.scm lib/genetic-operators.scm
 	rm -f lib/engine.o1
 	gsc lib/engine.scm
-	rm -f lib/genotypes.o1
-	gsc lib/genotypes.scm
-	rm -f lib/genetic-operators.o1
-	gsc lib/genetic-operators.scm
+	rm -f lib/genetic.o1
+	gsc lib/genetic.scm
 
 lib/obj-loader.o1: lib/obj-loader.scm
 	rm -f lib/obj-loader.o1

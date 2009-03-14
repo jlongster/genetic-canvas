@@ -21,7 +21,7 @@
 (load (resource lib-path "util/srfi-13.scm"))
 (load (resource lib-path "images"))
 (load (resource lib-path "vectors"))
-(load (resource lib-path "genotypes"))
+(load (resource lib-path "genetic"))
 ;; (load (resource lib-path "util/statprof/statprof"))
 
 ;; Utility
