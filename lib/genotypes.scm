@@ -23,20 +23,23 @@
   (make-genotype
    (let loop ((acc '())
               (i 0))
-     (if (< i 50)
-         (let ((random-point (lambda ()
+     (if (< i 150)
+         (let* ((random-point (lambda ()
                                (make-vec2
                                 (* (random-real)
                                    (exact->inexact (current-width)))
                                 (* (random-real)
                                    (exact->inexact (current-height))))))
-               (random-count (+ (random-integer 4) 3)))
+                (p (random-point))
+                (random-color (image-fetch-rgb source-image
+                                               (inexact->exact (floor (vec2-x p)))
+                                               (inexact->exact (floor (vec2-y p))))))
            (loop (cons (make-polygon
-                        (unfold (lambda (i) (>= i random-count))
+                        (unfold (lambda (i) (>= i 6))
                                 (lambda (i) (random-point))
                                 (lambda (i) (+ i 1))
                                 0)
-                        0. 0. 0. 0.)
+                        0. 0. 0. 0.001)
                        acc)
                  (+ i 1)))
          acc))
@@ -121,7 +124,7 @@
 (define (population-evolve! pop)
   (let* ((count (length pop))
          (sorted (sort pop
-                       (lambda (x y) (< (genotype-fitness x)
+                       (lambda (x y) (> (genotype-fitness x)
                                         (genotype-fitness y)))))
          (pop (unfold (lambda (i) (>= i count))
                       (lambda (i) (make-genotype

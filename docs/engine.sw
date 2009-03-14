@@ -62,6 +62,8 @@ this simple framework.
   (glMatrixMode GL_MODELVIEW)
   (glLoadIdentity)
 
+  (glEnable GL_BLEND)
+  (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
   (glDisable GL_CULL_FACE))
 
 (define (shutdown-engine)
@@ -71,7 +73,14 @@ this simple framework.
   (glClearColor 0. 1. 0. 1.)
   (glClear GL_COLOR_BUFFER_BIT)
 
-  (render-genotype gt))
+  (glBegin GL_POLYGON)
+  (glColor4f 0. 0. 1. .5)
+  (glVertex2f 0. 0.)
+  (glVertex2f 0. 100.)
+  (glVertex2f 220. 30.)
+  (glVertex2f 150. 60.)
+  (glVertex2f 40. 30.)
+  (glEnd))
 
 \section{Polygons}
 
