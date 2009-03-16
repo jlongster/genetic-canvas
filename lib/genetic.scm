@@ -1,5 +1,7 @@
 
-(load (resource lib-path "genetic-operators"))
+(declare (block)
+         (standard-bindings)
+         (extended-bindings))
 
 ;; Genotype
 
@@ -19,29 +21,84 @@
 (define (make-genotype data #!optional fitness)
   (really-make-genotype data (or fitness 0)))
 
+(define (copy-genotype gt)
+  (make-genotype (genotype-data gt) 0))
+
+(define (genotype-equal? gt1 gt2)
+  (let ((data1 (genotype-data gt1))
+        (data2 (genotype-data gt2)))
+    (let loop ((tail1 data1)
+               (tail2 data2)
+               (same #t))
+      (if (or (not same)
+              (null? tail1)
+              (null? tail2))
+          same
+          (loop (cdr tail1)
+                (cdr tail2)
+                (polygon-equal? (car tail1)
+                                (car tail2)))))))
+
+(define (polygon-equal? poly1 poly2)
+  (let ((points1 (polygon-points poly1))
+        (points2 (polygon-points poly2))
+        (color-same (color-equal? poly1 poly2)))
+    (let loop ((tail1 points1)
+               (tail2 points2)
+               (same #t))
+      (if (or (not same)
+              (null? tail1)
+              (null? tail2))
+          (and same color-same)
+          (loop (cdr tail1)
+                (cdr tail2)
+                (point-equal? (car tail1)
+                              (car tail2)))))))
+
+(define (point-equal? p1 p2)
+  (vec2-equal? p1 p2))
+
+(define (color-equal? poly1 poly2)
+  (and (eq? (polygon-red poly1) (polygon-red poly2))
+       (eq? (polygon-green poly1) (polygon-green poly2))
+       (eq? (polygon-blue poly1) (polygon-blue poly2))))
+
+(define global-point-field #f)
+
+(define (random-point)
+  (if global-point-field
+      (let ((point (vector-ref global-point-field
+                               (random-integer
+                                (vector-length global-point-field)))))
+        (make-vec2 (* (vec2-x point) (current-width))
+                   (* (vec2-y point) (current-height))))
+      (make-vec2
+       (* (random-real)
+          (exact->inexact (current-width)))
+       (* (random-real)
+          (exact->inexact (current-height))))))
+
+(define (random-polygon)
+  (let ((origin (random-point)))
+    (make-polygon
+     (unfold (lambda (i) (>= i 4))
+             (lambda (i) (vec2-add origin
+                                   (make-vec2 (- (random-integer 20) 10)
+                                              (- (random-integer 20) 10))))
+             (lambda (i) (+ i 1))
+             0)
+     (random-real)
+     (random-real)
+     (random-real)
+     (* (random-real) .6))))
+
 (define (random-genotype)
   (make-genotype
    (let loop ((acc '())
               (i 0))
-     (if (< i 150)
-         (let* ((random-point (lambda ()
-                               (make-vec2
-                                (* (random-real)
-                                   (exact->inexact (current-width)))
-                                (* (random-real)
-                                   (exact->inexact (current-height))))))
-                (p (random-point))
-                (random-color (image-fetch-rgb source-image
-                                               (inexact->exact (floor (vec2-x p)))
-                                               (inexact->exact (floor (vec2-y p))))))
-           (loop (cons (make-polygon
-                        (unfold (lambda (i) (>= i 6))
-                                (lambda (i) (random-point))
-                                (lambda (i) (+ i 1))
-                                0)
-                        0. 0. 0. 0.001)
-                       acc)
-                 (+ i 1)))
+     (if (< i 0)
+         (loop (cons (random-polygon) acc)
+               (+ i 1))
          acc))
    0.0))
 
@@ -69,43 +126,45 @@
   ;; Draw genotype
   (glClear GL_COLOR_BUFFER_BIT)
   (render-genotype gt)
-  (glColor4f 0.0 0.0 0.0 1.0)
-
-  ;; Draw mona lisa    
-  (glEnable GL_COLOR_LOGIC_OP)
-  (glLogicOp GL_XOR)
-  (glBindTexture GL_TEXTURE_2D (image-gl-texture-id source-image))
-  (glBegin GL_QUADS)
-  (begin
-    (glTexCoord2d 1. 1.)
-    (glVertex2f 0. 0.))
-  (begin
-    (glTexCoord2d 1. 0.)
-    (glVertex2f 0. (current-height)))
-  (begin
-    (glTexCoord2d 0. 0.)
-    (glVertex2f (current-width)
-                (current-height)))
-  (begin
-    (glTexCoord2d 0. 1.)
-    (glVertex2f (current-width) 0.))
-  (glEnd)
-  (glBindTexture GL_TEXTURE_2D 0)
-  (glDisable GL_COLOR_LOGIC_OP)
 
   (let* ((widthi (inexact->exact (current-width)))
          (heighti (inexact->exact (current-height))))
     (glReadPixels 0 0
                   widthi heighti
-                  GL_RGB GL_UNSIGNED_BYTE
+                  GL_RGBA GL_UNSIGNED_BYTE
                   (u8*->void* texture-buffer))
-    (sum-u8* texture-buffer
-             (* widthi heighti 3))))
+    (calculate-fitness texture-buffer)))
+
+(define (byte-difference bytes1 bytes2 i)
+  (abs (- (char->integer (u8*-ref bytes1 i))
+          (char->integer (u8*-ref bytes2 i)))))
+
+(define (calculate-fitness bytes)
+  (let ((source-bytes (image-bytes source-image-sized))
+        (width (image-width source-image))
+        (height (image-height source-image)))
+    (let loop ((acc 0)
+               (i 0))
+      (if (< i (* width height 4))
+          (loop (+ acc
+                   (byte-difference bytes source-bytes i)
+                   (byte-difference bytes source-bytes (+ i 1))
+                   (byte-difference bytes source-bytes (+ i 2)))
+                (+ i 4))
+          acc))))
+
+(define (overall-fitness fitness)
+  (- 1.0
+     (/ fitness (* (current-width)
+                   (current-height)
+                   255
+                   3))))
 
 
 ;; Population
 
-(define (make-population size)
+(define (make-population size #!optional point-field)
+  (set! global-point-field point-field)
   (let loop ((acc '())
              (i 0))
     (if (< i size)
@@ -120,6 +179,15 @@
           (genotype-fitness-set! gt (- worst-fitness
                                        (genotype-fitness gt)))
           (loop (cdr pop))))))
+
+(define (population-fitness-search pop op)
+  (fold (lambda (el acc)
+          (if (op (genotype-fitness el)
+                  (genotype-fitness acc))
+              el
+              acc))
+        (car pop)
+        (cdr pop)))
 
 (define (population-evolve! pop)
   (let* ((count (length pop))
@@ -139,15 +207,28 @@
             (cond
              ((null? tail) acc)
              ((eq? (cdr tail) '())
-              (reverse (cons (genotype-mutate-light (car tail)) acc)))
+              (reverse (cons (genotype-mutate-one (car tail)) acc)))
              (else
               (let ((gt1 (car tail))
                     (gt2 (cadr tail))
                     (tail (cddr tail)))
                 (receive (new-gt1 new-gt2) (genotype-crossover gt1 gt2)
-                  (loop (cons (genotype-mutate-light new-gt2)
-                              (cons (genotype-mutate-light new-gt1) acc))
+                  (loop (cons (genotype-mutate-one new-gt2)
+                              (cons (genotype-mutate-one new-gt1) acc))
                         tail)))))))))
+
+(define (population-evolve-two! pop)
+  (if (not (eq? (length pop) 2))
+      (error "population-evolve-two!: population size must be 2"))
+  (let ((best (if (> (genotype-fitness (car pop))
+                     (genotype-fitness (cadr pop)))
+                  (car pop)
+                  (cadr pop))))
+    (set! population
+          (list (copy-genotype best)
+                (let ((gt (copy-genotype best)))
+                  (mutate-genotype! gt)
+                  gt)))))
 
 
 ;; Selection procedures
@@ -216,95 +297,196 @@
 
 ;; Mutation procedures
 
-(define default-mutation-rate .5)
+(define min-red 0.)
+(define max-red 1.)
+(define min-green 0.)
+(define max-green 1.)
+(define min-blue 0.)
+(define max-blue 1.)
+
+(define (analyze-source image)
+  (let ((bytes (image-bytes image)))
+    (let loop ((min-r 1.)
+               (min-g 1.)
+               (min-b 1.)
+               (max-r 0.)
+               (max-g 0.)
+               (max-b 0.)
+               (i 0))
+      (if (< i (* (image-width image)
+                  (image-height image)
+                  4))
+          (let ((r (byte->real (u8*-ref bytes i)))
+                (g (byte->real (u8*-ref bytes (+ i 1))))
+                (b (byte->real (u8*-ref bytes (+ i 2)))))
+            (loop (min min-r r)
+                  (min min-g g)
+                  (min min-b b)
+                  (max max-r r)
+                  (max max-g g)
+                  (max max-b b)
+                  (+ i 4)))
+          (begin
+            (set! min-red min-r)
+            (set! max-red max-r)
+            (set! min-green min-g)
+            (set! max-green max-g)
+            (set! min-blue min-b)
+            (set! max-blue max-b))))))
 
 (define (half-negate f)
   (- (* f 2.) 1.))
 
-(define (saturate f)
-  (if (< f 0.) 0.
-      (if (> f 1.) 1.
-          f)))
-
 (define (mutate-point point)
-  (make-vec2 (+ (vec2-x point) (* (half-negate (random-real)) 50))
-             (+ (vec2-y point) (* (half-negate (random-real)) 50))))
+  (make-vec2 (+ (vec2-x point) (* (half-negate (random-real)) 20))
+             (+ (vec2-y point) (* (half-negate (random-real)) 20))))
 
-(define (mutate-real real)
-  (saturate (+ (* (half-negate (random-real)))
-               real)))
+(define (mutate-real real minv maxv)
+  (min (max (+ (* (random-real-in-range -.1 .1)) real)
+            minv)
+       maxv))
+
+(define (random-real-in-range minv maxv)
+  (+ (* (random-real)
+        (- maxv minv))
+     minv))
 
 (define-type mutator
+  name
   func
-  weight)
+  probability)
 
-(define mutators
-  (list (make-mutator
+;; add a "move polygon"?
+(define poly-mutators
+  (list ;; (make-mutator 'add-point
+;;          (lambda (poly)
+;;            (polygon-points-set! poly
+;;             (cons (random-point) (polygon-points poly))))
+;;          .001)
+;;         (make-mutator 'remove-point
+;;          (lambda (poly)
+;;            (if (> (length (polygon-points poly)) 3)
+;;                (begin
+;;                  (polygon-points-set!
+;;                   poly
+;;                   (cdr (polygon-points poly))))))
+;;          .001)
+        (make-mutator 'move-point
+         (lambda (poly)
+           (let* ((points (list->vector (polygon-points poly)))
+                  (idx (random-integer (vector-length points))))
+             (vector-set! points idx (random-point))
+             (polygon-points-set! poly (vector->list points))))
+         .001)
+        (make-mutator 'move-point-minor
          (lambda (poly)
            (let* ((points (list->vector (polygon-points poly)))
                   (idx (random-integer (vector-length points))))
              (vector-set! points idx
                           (mutate-point (vector-ref points idx)))
              (polygon-points-set! poly (vector->list points))))
-         4)
-        (make-mutator
+         .05)
+        (make-mutator 'change-red
          (lambda (poly)
-           (polygon-red-set! poly (random-real)))
-         1)
-        (make-mutator
+           (polygon-red-set! poly (random-real-in-range min-red max-red)))
+         .001)
+        (make-mutator 'change-red-minor
          (lambda (poly)
-           (polygon-green-set! poly (random-real)))
-         1)
-        (make-mutator
+           (polygon-red-set! poly (mutate-real (polygon-red poly)
+                                               min-red
+                                               max-red)))
+         .01)
+        (make-mutator 'change-green
          (lambda (poly)
-           (polygon-blue-set! poly (random-real)))
-         1)
-        (make-mutator
+           (polygon-green-set! poly (random-real-in-range min-green max-green)))
+         .001)
+        (make-mutator 'change-green-minor
          (lambda (poly)
-           (polygon-alpha-set! poly (* (random-real) .5)))
-         1)))
+           (polygon-green-set! poly (mutate-real (polygon-green poly)
+                                                 min-green
+                                                 max-green)))
+         .01)
+        (make-mutator 'change-blue
+         (lambda (poly)
+           (polygon-blue-set! poly (random-real-in-range min-blue max-blue)))
+         .001)
+        (make-mutator 'change-blue-minor
+         (lambda (poly)
+           (polygon-blue-set! poly (mutate-real (polygon-blue poly)
+                                                min-blue
+                                                max-blue)))
+         .01)
+        (make-mutator 'change-alpha
+         (lambda (poly)
+           (polygon-alpha-set! poly (+ (* (random-real) .7) .1)))
+         .001)
+        (make-mutator 'change-alpha-minor
+         (lambda (poly)
+           (polygon-alpha-set! poly
+                               (mutate-real
+                                (polygon-alpha poly) 0. 1.)))
+         .01)))
 
-(define mutator-weight-range (fold (lambda (el acc)
-                                     (+ acc (mutator-weight el)))
-                                   0
-                                   mutators))
+(define genotype-mutators
+  (list (make-mutator 'add-poly
+         (lambda (gt)
+           (genotype-data-set!
+            gt
+            (cons (random-polygon)
+                  (genotype-data gt))))
+         .1)
+        (make-mutator 'remove-poly
+         (lambda (gt)
+           (if (not (null? (genotype-data gt)))
+               (genotype-data-set!
+                gt
+                (cdr (genotype-data gt)))))
+         .05)))
+
+(define (run-mutators lst thing)
+  (let loop ((tail lst))
+    (if (not (null? tail))
+        (let ((m (car tail)))
+          (if (< (random-real) (mutator-probability m))
+              (begin
+                (display (mutator-name m)) (newline)
+                ((mutator-func m) thing)))
+          (loop (cdr tail))))))
 
 (define (mutate-polygon! polygon)
-  (let ((mutator (selection-rws mutators
-                                (random-integer mutator-weight-range)
-                                mutator-weight)))
-    ((mutator-func mutator) polygon)))
+  (run-mutators poly-mutators polygon))
 
-(define (genotype-mutate-heavy gt #!optional rate)
-  (make-genotype
-   (let loop ((acc '())
-              (data (genotype-data gt)))
-     (if (null? data)
-         (reverse acc)
-         (loop (cons (if (< (random-real)
-                            (or rate default-mutation-rate))
-                         (let* ((poly (car data))
-                                (new-poly (make-polygon (polygon-points poly)
-                                                        (polygon-red poly)
-                                                        (polygon-green poly)
-                                                        (polygon-blue poly)
-                                                        (polygon-alpha poly))))
-                           (mutate-polygon! new-poly)
-                           new-poly)
-                         (car data))
-                     acc)
-               (cdr data))))))
+(define (mutate-genotype! gt)
+  (run-mutators genotype-mutators gt)
+  (genotype-data-set!
+   gt
+   (polygons-mutate-many (genotype-data gt))))
 
-(define (genotype-mutate-light gt #!optional rate)
-  (make-genotype
-   (let* ((polys (list->vector (genotype-data gt)))
-          (idx (random-integer (vector-length polys)))
-          (poly (vector-ref polys idx))
-          (new-poly (make-polygon (polygon-points poly)
-                                  (polygon-red poly)
-                                  (polygon-green poly)
-                                  (polygon-blue poly)
-                                  (polygon-alpha poly))))
-     (mutate-polygon! new-poly)
-     (vector-set! polys idx new-poly)
-     (vector->list polys))))
+(define (polygons-mutate-many polys)
+  (let loop ((acc '())
+             (data polys))
+    (if (null? data)
+        (reverse acc)
+        (loop (cons (let* ((poly (car data))
+                           (new-poly (make-polygon (polygon-points poly)
+                                                   (polygon-red poly)
+                                                   (polygon-green poly)
+                                                   (polygon-blue poly)
+                                                   (polygon-alpha poly))))
+                      (mutate-polygon! new-poly)
+                      new-poly)
+                    acc)
+              (cdr data)))))
+
+(define (polygon-mutate-one polys)
+  (let* ((polys (list->vector polys))
+         (idx (random-integer (vector-length polys)))
+         (poly (vector-ref polys idx))
+         (new-poly (make-polygon (polygon-points poly)
+                                 (polygon-red poly)
+                                 (polygon-green poly)
+                                 (polygon-blue poly)
+                                 (polygon-alpha poly))))
+    (mutate-polygon! new-poly)
+    (vector-set! polys idx new-poly)
+    (vector->list polys)))

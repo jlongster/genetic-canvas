@@ -26,23 +26,23 @@ An image type is defined with the following fields:
 \item gl-texture-id
 \end{itemize}
 
-\subsection{(make-image filename)}
+\subsection{(load-image filename)}
 
 Loads an image into memory, returning an image instance. FreeImage is
 used to load images. Only JPG support has been implemented.
 
 (define test-image #f)
 
-(define-test make-image
-  (set! test-image (make-image "docs/test.jpg"))
+(define-test load-image
+  (set! test-image (load-image "docs/test.jpg"))
   (assert-equal (image-width test-image) 100)
   (assert-equal (image-height test-image) 100)
   (assert-equal (char->integer
-                 (u8*-ref (image-rgb-bytes test-image) 0)) 25)
+                 (u8*-ref (image-bytes test-image) 0)) 25)
   (assert-equal (char->integer
-                 (u8*-ref (image-rgb-bytes test-image) 1)) 51)
+                 (u8*-ref (image-bytes test-image) 1)) 51)
   (assert-equal (char->integer
-                 (u8*-ref (image-rgb-bytes test-image) 2)) 76))
+                 (u8*-ref (image-bytes test-image) 2)) 76))
 
 \subsection{(image-opengl-upload! image)}
 
@@ -64,7 +64,7 @@ position.  The bottom-left corner defines (0,0).
     (assert-equal (vec3-y color) 255)
     (assert-equal (vec3-z color) 255)))
 
-\section{Genetic Operators (lib/genetic-operators.scm)}
+\section{Genetic Algorithm (lib/genetic.scm)}
 
 \subsection{(selection-rws pop f)}
 
@@ -126,13 +126,26 @@ will generate this randomly.
       (assert-equal (genotype-data new-gt1) '(1 2 3 4 5 13))
       (assert-equal (genotype-data new-gt2) '(6 7 8 9 10 11 12)))))
 
-\subsection{(genotype-mutate gt \#!optional rate)}
+\subsection{(mutate-polygon! polygon)}
 
-Implements the mutation operator. Currently, this simply shuffles each
-triangle a little bit and re-calculates its color (for those which are
-determined to be mutated according to the mutation rate). The default
-mutation rate is \begin{math}.01\end{math}, which can be overridden by
-the second parameter.
+Mutates a polygon. This selects one ``mutator'' from many and executes
+it. Each mutator modifies some aspect of the polygon, such as adding
+points, moving points, changing the red color, etc.
+
+\subsection{(genotype-mutate-many gt \#!optional rate)}
+      
+Implements a mutation operator which mutates many of the solution's polygons.
+The polygon mutation rate is .1, or 1/10th of the polygons are mutated.
+
+This checks the genotype mutation rate automatically.  The default genotype
+mutation rate is .5.  The 2nd parameter overrides this.
+
+\subsection{(genotype-mutate-one gt \#!optional rate)}
+
+Implements a mutation operater which mutates only one of the solution's polygons.
+
+This checks the genotype mutation rate automatically.  The default genotype
+mutation rate is .5.  The 2nd parameter overrides this.
 
 \section{Vectors (lib/vectors.scm)}
 
@@ -143,6 +156,44 @@ TODO:  add vector unit tests
 \section{Engine (lib/engine.scm)}
 
 Fires up the real engine.
+
+\section{Triangulation}
+
+\subsection{(triangulate c-vec2* int)}
+
+(load "lib/util/triangulate-ffi")
+
+(define-test triangulate
+  (let ((buf (alloc-c-vec2 4)))
+    (c-vec2-x-set! (c-vec2*-ref buf 0) 8.)
+    (c-vec2-y-set! (c-vec2*-ref buf 0) 14.)
+    
+    (c-vec2-x-set! (c-vec2*-ref buf 1) -5.)
+    (c-vec2-y-set! (c-vec2*-ref buf 1) 24.)
+
+    (c-vec2-x-set! (c-vec2*-ref buf 2) 15.)
+    (c-vec2-y-set! (c-vec2*-ref buf 2) 7.)
+    
+    (c-vec2-x-set! (c-vec2*-ref buf 3) 6.)
+    (c-vec2-y-set! (c-vec2*-ref buf 3) -9.)
+
+    (let ((res (triangulate buf 9)))
+      (show (c-vec2-x (c-vec2*-ref res 0))
+            " "
+            (c-vec2-y (c-vec2*-ref res 0))
+            "\n")
+      (show (c-vec2-x (c-vec2*-ref res 1))
+            " "
+            (c-vec2-y (c-vec2*-ref res 1))
+            "\n")
+      (show (c-vec2-x (c-vec2*-ref res 2))
+            " "
+            (c-vec2-y (c-vec2*-ref res 2))
+            "\n")
+      (show (c-vec2-x (c-vec2*-ref res 3))
+            " "
+            (c-vec2-y (c-vec2*-ref res 3))
+            "\n"))))
 
 \section{Benchmarks}
     

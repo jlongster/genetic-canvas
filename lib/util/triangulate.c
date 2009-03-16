@@ -137,11 +137,25 @@ int main(int argc, char** argv) {
     vecs[1].y = 5;
     
     vecs[2].x = 5;
-    vecs[2].y = 5;
+    vecs[2].y = 9;
     
-    vecs[3].x = 5;
+    vecs[3].x = -45;
     vecs[3].y = 0;
 
-    printf("%x", triangulate(vecs, 15));
+    vecs[4].x = 25;
+    vecs[4].y = -5;
+
+    vecs[5].x = 2;
+    vecs[5].y = 33;
+
+    vecs[6].x = -5;
+    vecs[6].y = 30;
+
+    int i;
+    vec2 *v = triangulate(vecs, 7);
+    for(i=0; i<7; i++) {
+        printf("(%f, %f)\n", v[i].x, v[i].y);
+    }
+
     return 0;
 }

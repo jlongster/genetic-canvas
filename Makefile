@@ -43,11 +43,15 @@ lib/ffi/freeimage.o1: lib/ffi/freeimage.scm
 	gsc -ld-options "-L/opt/local/lib -lfreeimage" \
 		lib/ffi/freeimage.scm
 
-lib/engine.o1: lib/engine.scm lib/genotypes.scm lib/genetic-operators.scm
+lib/engine.o1: lib/engine.scm lib/genetic.scm
 	rm -f lib/engine.o1
 	gsc lib/engine.scm
 	rm -f lib/genetic.o1
 	gsc lib/genetic.scm
+
+lib/images.o1: lib/images.scm
+	rm -f lib/images.o1
+	gsc lib/images.scm
 
 lib/obj-loader.o1: lib/obj-loader.scm
 	rm -f lib/obj-loader.o1
@@ -86,11 +90,12 @@ test: docs/main.sw
 		-e '(include "lib/resources.scm")' \
 		docs/main.scm
 
-test-engine: docs/engine.sw
-	sweb -s docs/engine.sw > docs/engine.scm
-	gsc -c docs/engine.scm
-	gsc -link -o docs/engine_.c docs/engine.c app/entry.c
-	gcc -o docs/main docs/engine_.c docs/engine.c app/entry.c \
+test-engine: docs/engine/engine.sw
+	sweb -s docs/engine/engine.sw > docs/engine/engine.scm
+	gsc -c docs/engine/engine.scm
+	gsc -link -o docs/engine/engine_.c docs/engine/engine.c app/entry.c
+	gcc -o docs/engine/engine docs/engine/engine_.c \
+		docs/engine/engine.c app/entry.c \
 		app/cocoa.m app/glview.m \
 		app/glwindow.m \
 		app/app.m \
@@ -98,8 +103,25 @@ test-engine: docs/engine.sw
 		-framework Cocoa -framework OpenGL \
 		-lgambc \
 	 	-lIL \
-		-sectcreate __TEXT __info_plist docs/Info.plist
-	docs/main
+		-sectcreate __TEXT __info_plist docs/engine/Info.plist
+	docs/engine/engine
+
+test-images: docs/images/images.sw
+	make lib/images.o1
+	sweb -s docs/images/images.sw > docs/images/images.scm
+	gsc -c docs/images/images.scm
+	gsc -link -o docs/images/images_.c docs/images/images.c app/entry.c
+	gcc -o docs/images/images docs/images/images_.c \
+		docs/images/images.c app/entry.c \
+		app/cocoa.m app/glview.m \
+		app/glwindow.m \
+		app/app.m \
+		-I/usr/local/Gambit-C/current/include \
+		-framework Cocoa -framework OpenGL \
+		-lgambc \
+	 	-lIL \
+		-sectcreate __TEXT __info_plist docs/images/Info.plist
+	docs/images/images
 
 pdf: docs/main.sw docs/engine.sw
 	sweb -w docs/main.sw > docs/main.tex

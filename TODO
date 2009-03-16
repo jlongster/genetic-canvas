@@ -1,3 +1,2 @@
 
 - Move lib/init.scm to app/init.scm
-- Download schemeweb and write unit tests as literate programming

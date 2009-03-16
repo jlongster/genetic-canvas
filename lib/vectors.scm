@@ -7,6 +7,10 @@
 (define-structure vec3
   x y z)
 
+(define (vec2-equal? v1 v2)
+  (and (eq? (vec2-x v1) (vec2-x v2))
+       (eq? (vec2-y v1) (vec2-y v2))))
+
 (define (vec2-op v1 v2 op)
   (make-vec2 (op (vec2-x v1) (vec2-x v2))
              (op (vec2-y v1) (vec2-y v2))))
@@ -27,6 +31,11 @@
 (define (vec2-length v1)
   (sqrt (+ (* (vec2-x v1) (vec2-x v1))
            (* (vec2-y v1) (vec2-y v1)))))
+
+(define (vec3-equal? v1 v2)
+  (and (eq? (vec3-x v1) (vec3-x v2))
+       (eq? (vec3-y v1) (vec3-y v2))
+       (eq? (vec3-z v1) (vec3-z v2))))
 
 (define (vec3-op v1 v2 op)
   (make-vec3 (op (vec3-x v1) (vec3-x v2))

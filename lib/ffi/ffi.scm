@@ -38,14 +38,18 @@ end-c-code
   (c-lambda ((pointer unsigned-char) int) unsigned-char
             "___result = ___arg1[___arg2];"))
 
-(define sum-u8*
+(define u8*-set!
+  (c-lambda ((pointer unsigned-char) int unsigned-char) void
+            "___arg1[___arg2] = ___arg3;"))
+
+(define sum-u8-bits*
   (c-lambda ((pointer unsigned-char) int) unsigned-long #<<end-c-code
    unsigned char *buf = ___arg1;
    int len=___arg2;
    int i=0;
    unsigned long acc=0;
    while(i<len) {
-	   acc+=buf[i];
+	   acc+=__builtin_popcount(buf[i]);
 	   i++;
    }
    ___result = acc;

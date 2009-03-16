@@ -30,12 +30,19 @@
 (define current-height (make-parameter 0))
 
 (define source-image #f)
+(define source-image-edges #f)
+(define source-image-sized #f)
 (define texture-buffer #f)
 
 (define population #f)
 
 (define (display-gl-error)
   (display (gluErrorString (glGetError))))
+
+(define (show . rest)
+  (for-each (lambda (el)
+              (display el))
+            rest))
 
 
 ;; Application
@@ -47,9 +54,23 @@
   (current-width (exact->inexact width))
   (current-height (exact->inexact height))
 
-  (set! source-image (make-image (resource "resources/monalisa.jpg")))
-  (set! population (make-population 4))
-  (freeimage-initialize #f))
+  (freeimage-initialize #f)
+  (set! source-image (load-image (resource "resources/test1.jpg")))
+;;   (set! source-image-edges (load-image (resource "resources/monalisa.jpg")))
+
+;;   (image-bytes-set! source-image-edges
+;;                     (edge-filter
+;;                      (gaussian-blur-filter
+;;                       (rgb->greyscale (image-bytes source-image-edges)
+;;                                       (* (image-width source-image-edges)
+;;                                          (image-height source-image-edges)))
+;;                       (image-width source-image-edges)
+;;                       (image-height source-image-edges))
+;;                      (image-width source-image-edges)
+;;                      (image-height source-image-edges)))
+;;   (image-format-set! source-image-edges FORMAT_LUMINANCE)
+  
+  (set! population (make-population 2)))
 
 (define (shutdown-engine)
   (freeimage-deinitialize)
@@ -76,26 +97,51 @@
   
   (set! texture-buffer (alloc-u8 (inexact->exact (* (current-width)
                                                     (current-height)
-                                                    4)))))
+                                                    4))))
+
+  (let ((tmp-buffer (alloc-u8 (inexact->exact (* (current-width)
+                                                 (current-height)
+                                                 4)))))
+    (image-render source-image)
+    (glReadPixels 0 0
+                  (inexact->exact (current-width))
+                  (inexact->exact (current-height))
+                  GL_RGBA GL_UNSIGNED_BYTE
+                  (u8*->void* tmp-buffer))
+    (set! source-image-sized (make-image (inexact->exact (current-width))
+                                         (inexact->exact (current-height))
+                                         tmp-buffer
+                                         FORMAT_RGBA
+                                         #f)))
+  (analyze-source source-image-sized)
+
+  (show "min-red: " min-red) (newline)
+  (show "max-red: " max-red) (newline)
+  (show "min-green: " min-green) (newline)
+  (show "max-green: " max-green) (newline)
+  (show "min-blue: " min-blue) (newline)
+  (show "max-blue: " max-blue) (newline))
 
 (define (run-frame)
-  (glClearColor 1. 1. 1. 1.)
+  (glClearColor 0. 0. 0. 1.)
   (glLoadIdentity)
-
-  ;; Run all the genotypes
-  (let loop ((pop population)
-             (best 0)
-             (worst 0))
-    (if (null? pop)
-        (population-normalize population best worst)
-        (let* ((gt (car pop))
-               (fitness (run-genotype gt)))
-          (genotype-fitness-set! gt fitness)
-          (loop (cdr pop)
-                (min best fitness)
-                (max worst fitness)))))
-
-  (glClear GL_COLOR_BUFFER_BIT)
-  (render-genotype (car population))
   
-  (population-evolve! population))
+  ;; Run all the genotypes
+  (fold (lambda (el acc)
+          (genotype-fitness-set! el (run-genotype el)))
+        #f
+        population)
+
+  (let ((best (population-fitness-search population <))
+        (worst (population-fitness-search population >)))
+    (glClear GL_COLOR_BUFFER_BIT)
+    (render-genotype best)
+    (glColor4f 1. 1. 1. .1)
+    (image-render source-image-sized)
+    (show "overall fitness: "
+          (overall-fitness (genotype-fitness best)) " "
+          (overall-fitness (genotype-fitness worst)) "\n")
+    (population-normalize population
+                          (genotype-fitness best)
+                          (genotype-fitness worst))
+    (population-evolve-two! population)))
