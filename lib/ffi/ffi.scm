@@ -35,26 +35,12 @@ end-c-code
             "___result_voidstar = (void*)___arg1;"))
 
 (define u8*-ref
-  (c-lambda ((pointer unsigned-char) int) unsigned-char
+  (c-lambda ((pointer unsigned-char) int) int
             "___result = ___arg1[___arg2];"))
 
 (define u8*-set!
-  (c-lambda ((pointer unsigned-char) int unsigned-char) void
+  (c-lambda ((pointer unsigned-char) int int) void
             "___arg1[___arg2] = ___arg3;"))
-
-(define sum-u8-bits*
-  (c-lambda ((pointer unsigned-char) int) unsigned-long #<<end-c-code
-   unsigned char *buf = ___arg1;
-   int len=___arg2;
-   int i=0;
-   unsigned long acc=0;
-   while(i<len) {
-	   acc+=__builtin_popcount(buf[i]);
-	   i++;
-   }
-   ___result = acc;
-end-c-code
-))
 
 (define alloc-uint
   (c-lambda (int) (pointer unsigned-int)

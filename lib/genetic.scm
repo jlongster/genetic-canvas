@@ -81,10 +81,10 @@
 (define (random-polygon)
   (let ((origin (random-point)))
     (make-polygon
-     (unfold (lambda (i) (>= i 4))
+     (unfold (lambda (i) (>= i 3))
              (lambda (i) (vec2-add origin
-                                   (make-vec2 (- (random-integer 20) 10)
-                                              (- (random-integer 20) 10))))
+                                   (make-vec2 (- (random-integer 30) 15)
+                                              (- (random-integer 30) 15))))
              (lambda (i) (+ i 1))
              0)
      (random-real)
@@ -141,8 +141,8 @@
 
 (define (calculate-fitness bytes)
   (let ((source-bytes (image-bytes source-image-sized))
-        (width (image-width source-image))
-        (height (image-height source-image)))
+        (width (image-width source-image-sized))
+        (height (image-height source-image-sized)))
     (let loop ((acc 0)
                (i 0))
       (if (< i (* width height 4))
@@ -172,13 +172,17 @@
               (+ i 1))
         acc)))
 
-(define (population-normalize pop best-fitness worst-fitness)
-  (let loop ((pop pop))
-    (if (not (null? pop))
-        (let ((gt (car pop)))
-          (genotype-fitness-set! gt (- worst-fitness
-                                       (genotype-fitness gt)))
-          (loop (cdr pop))))))
+(define (population-normalize pop)
+  (let ((best-fitness (genotype-fitness
+                       (population-fitness-search pop <)))
+        (worst-fitnes (genotype-fitness
+                       (population-fitness-search pop >))))
+    (let loop ((pop pop))
+      (if (not (null? pop))
+          (let ((gt (car pop)))
+            (genotype-fitness-set! gt (- worst-fitness
+                                         (genotype-fitness gt)))
+            (loop (cdr pop)))))))
 
 (define (population-fitness-search pop op)
   (fold (lambda (el acc)
@@ -188,6 +192,13 @@
               acc))
         (car pop)
         (cdr pop)))
+
+(define (population-run! pop)
+  (fold (lambda (el acc)
+          (genotype-fitness-set! el (run-genotype el)))
+        #f
+        pop)
+  (population-normalize population))
 
 (define (population-evolve! pop)
   (let* ((count (length pop))
@@ -217,15 +228,20 @@
                               (cons (genotype-mutate-one new-gt1) acc))
                         tail)))))))))
 
-(define (population-evolve-two! pop)
-  (if (not (eq? (length pop) 2))
-      (error "population-evolve-two!: population size must be 2"))
-  (let ((best (if (> (genotype-fitness (car pop))
-                     (genotype-fitness (cadr pop)))
-                  (car pop)
-                  (cadr pop))))
+(define (population-evolve-three! pop)
+  (if (not (eq? (length pop) 3))
+      (error "population-evolve-three!: population size must be 3"))
+  (let ((best (fold (lambda (el acc)
+                      (if (> (genotype-fitness el)
+                             (genotype-fitness acc))
+                          el acc))
+                    (car pop)
+                    (cdr pop))))
     (set! population
           (list (copy-genotype best)
+                (let ((gt (copy-genotype best)))
+                  (mutate-polygons! gt)
+                  gt)
                 (let ((gt (copy-genotype best)))
                   (mutate-genotype! gt)
                   gt)))))
@@ -297,43 +313,6 @@
 
 ;; Mutation procedures
 
-(define min-red 0.)
-(define max-red 1.)
-(define min-green 0.)
-(define max-green 1.)
-(define min-blue 0.)
-(define max-blue 1.)
-
-(define (analyze-source image)
-  (let ((bytes (image-bytes image)))
-    (let loop ((min-r 1.)
-               (min-g 1.)
-               (min-b 1.)
-               (max-r 0.)
-               (max-g 0.)
-               (max-b 0.)
-               (i 0))
-      (if (< i (* (image-width image)
-                  (image-height image)
-                  4))
-          (let ((r (byte->real (u8*-ref bytes i)))
-                (g (byte->real (u8*-ref bytes (+ i 1))))
-                (b (byte->real (u8*-ref bytes (+ i 2)))))
-            (loop (min min-r r)
-                  (min min-g g)
-                  (min min-b b)
-                  (max max-r r)
-                  (max max-g g)
-                  (max max-b b)
-                  (+ i 4)))
-          (begin
-            (set! min-red min-r)
-            (set! max-red max-r)
-            (set! min-green min-g)
-            (set! max-green max-g)
-            (set! min-blue min-b)
-            (set! max-blue max-b))))))
-
 (define (half-negate f)
   (- (* f 2.) 1.))
 
@@ -371,13 +350,13 @@
 ;;                   poly
 ;;                   (cdr (polygon-points poly))))))
 ;;          .001)
-        (make-mutator 'move-point
-         (lambda (poly)
-           (let* ((points (list->vector (polygon-points poly)))
-                  (idx (random-integer (vector-length points))))
-             (vector-set! points idx (random-point))
-             (polygon-points-set! poly (vector->list points))))
-         .001)
+;;         (make-mutator 'move-point
+;;          (lambda (poly)
+;;            (let* ((points (list->vector (polygon-points poly)))
+;;                   (idx (random-integer (vector-length points))))
+;;              (vector-set! points idx (random-point))
+;;              (polygon-points-set! poly (vector->list points))))
+;;          .001)
         (make-mutator 'move-point-minor
          (lambda (poly)
            (let* ((points (list->vector (polygon-points poly)))
@@ -385,7 +364,7 @@
              (vector-set! points idx
                           (mutate-point (vector-ref points idx)))
              (polygon-points-set! poly (vector->list points))))
-         .05)
+         .1)
         (make-mutator 'change-red
          (lambda (poly)
            (polygon-red-set! poly (random-real-in-range min-red max-red)))
@@ -395,7 +374,7 @@
            (polygon-red-set! poly (mutate-real (polygon-red poly)
                                                min-red
                                                max-red)))
-         .01)
+         .05)
         (make-mutator 'change-green
          (lambda (poly)
            (polygon-green-set! poly (random-real-in-range min-green max-green)))
@@ -405,7 +384,7 @@
            (polygon-green-set! poly (mutate-real (polygon-green poly)
                                                  min-green
                                                  max-green)))
-         .01)
+         .05)
         (make-mutator 'change-blue
          (lambda (poly)
            (polygon-blue-set! poly (random-real-in-range min-blue max-blue)))
@@ -415,7 +394,7 @@
            (polygon-blue-set! poly (mutate-real (polygon-blue poly)
                                                 min-blue
                                                 max-blue)))
-         .01)
+         .05)
         (make-mutator 'change-alpha
          (lambda (poly)
            (polygon-alpha-set! poly (+ (* (random-real) .7) .1)))
@@ -425,23 +404,34 @@
            (polygon-alpha-set! poly
                                (mutate-real
                                 (polygon-alpha poly) 0. 1.)))
-         .01)))
+         .05)))
 
 (define genotype-mutators
-  (list (make-mutator 'add-poly
+  (list (make-mutator 'remove-poly
+         (lambda (gt)
+           (if (not (null? (genotype-data gt)))
+               (genotype-data-set!
+                gt
+                (let loop ((acc '())
+                           (tail (genotype-data gt))
+                           (i 0)
+                           (rnd (random-integer (length (genotype-data gt)))))
+                  (if (null? tail)
+                      (reverse acc)
+                      (if (= i rnd)
+                          (loop acc (cdr tail) (+ i 1) rnd)
+                          (loop (cons (car tail) acc)
+                                (cdr tail)
+                                (+ i 1)
+                                rnd)))))))
+         .05)
+        (make-mutator 'add-poly
          (lambda (gt)
            (genotype-data-set!
             gt
             (cons (random-polygon)
                   (genotype-data gt))))
-         .1)
-        (make-mutator 'remove-poly
-         (lambda (gt)
-           (if (not (null? (genotype-data gt)))
-               (genotype-data-set!
-                gt
-                (cdr (genotype-data gt)))))
-         .05)))
+         .7)))
 
 (define (run-mutators lst thing)
   (let loop ((tail lst))
@@ -456,11 +446,17 @@
 (define (mutate-polygon! polygon)
   (run-mutators poly-mutators polygon))
 
-(define (mutate-genotype! gt)
-  (run-mutators genotype-mutators gt)
+(define (mutate-polygons! gt)
   (genotype-data-set!
    gt
    (polygons-mutate-many (genotype-data gt))))
+
+(define (mutate-genotype! gt)
+  (run-mutators genotype-mutators gt)
+  ;; (genotype-data-set!
+;;    gt
+;;    (polygons-mutate-many (genotype-data gt)))
+  )
 
 (define (polygons-mutate-many polys)
   (let loop ((acc '())

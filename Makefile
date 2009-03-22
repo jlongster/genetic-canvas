@@ -43,9 +43,11 @@ lib/ffi/freeimage.o1: lib/ffi/freeimage.scm
 	gsc -ld-options "-L/opt/local/lib -lfreeimage" \
 		lib/ffi/freeimage.scm
 
-lib/engine.o1: lib/engine.scm lib/genetic.scm
+lib/engine.o1: lib/engine.scm
 	rm -f lib/engine.o1
 	gsc lib/engine.scm
+
+lib/genetic.o1: lib/genetic.scm
 	rm -f lib/genetic.o1
 	gsc lib/genetic.scm
 
@@ -53,18 +55,19 @@ lib/images.o1: lib/images.scm
 	rm -f lib/images.o1
 	gsc lib/images.scm
 
-lib/obj-loader.o1: lib/obj-loader.scm
-	rm -f lib/obj-loader.o1
-	gsc lib/obj-loader.scm
-
-objects: lib/engine.o1 \
-	lib/opengl-ffi/opengl.o1 \
-	lib/opengl-ffi/glu.o1 \
-	lib/obj-loader.o1
+objects: lib/ffi/ffi.o1 \
+	lib/ffi/gl/gl.o1 \
+	lib/ffi/gl/glu.o1 \
+	lib/ffi/freeimage.o1 \
+	lib/engine.o1 \
+	lib/genetic.o1 \
+	lib/images.o1
 
 clean-objects:
-	find . -iname '*.o1' -not -iname 'opengl*' \
-			     -not -iname 'glu*' | xargs rm
+	find . -iname '*.o1' | xargs rm
+
+clean-lib-objects:
+	find . -iname '*.o1' -not -ipath '*/ffi/*' | xargs rm
 
 ## For compiling as a bundled app
 # Main.app/Contents/Info.plist: Info.plist
@@ -136,5 +139,4 @@ clean: clean-objects
 	rm -f app/entry.c
 	rm -f app/entry-end.c
 	rm -f main
-	rm -rf Main.app
 	rm -rf main.nib

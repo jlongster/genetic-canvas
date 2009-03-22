@@ -13,11 +13,23 @@
 
 (define-type image
   id: EF8C0406-A5C4-48A6-BC1B-B615E1FEEFA6
+  constructor: really-make-image
   width
   height
   bytes
   format
   gl-texture-id)
+
+(define (make-image width height format #!optional bytes)
+  (let* ((bytes-count (case format
+                        ((FORMAT_LUMINANCE) 1)
+                        ((FORMAT_RGB) 3)
+                        ((FORMAT_RGBA) 4)))
+         (bytes (or bytes (alloc-u8 (* width height bytes-count))))
+         (img (really-make-image width height bytes format #f)))
+    (make-will img (lambda (x)
+                     (free (image-bytes x))))
+    img))
 
 (define (load-image filename)
   (if (not (or (not (eq? (string-suffix-length filename ".jpg") 0))
@@ -26,9 +38,19 @@
   (let ((img (freeimage-load-jpg filename)))
     (make-image (freeimage-width img)
                 (freeimage-height img)
-                (freeimage-bytes img)
                 FORMAT_RGB
-                #f)))
+                (freeimage-bytes img))))
+
+(define (image-read-gl-pixels! image)
+  (if (not (eq? (image-format image) FORMAT_RGBA))
+      (error (string-append "You can only read pixels from opengl into "
+                            "an image with the format RGBA")
+             image))
+  (glReadPixels 0 0
+                (image-width image)
+                (image-height image)
+                GL_RGBA GL_UNSIGNED_BYTE
+                (u8*->void* (image-bytes image))))
 
 (define (image-opengl-upload! image)
   (let ((tex (with-alloc (buf (alloc-uint 1))
@@ -66,46 +88,32 @@
     (let* ((offset (+ (* y (image-width image)) x))
            (byte-offset (* offset 3))
            (data (image-bytes image)))
-      (make-vec3 (char->integer (u8*-ref data byte-offset))
-                 (char->integer (u8*-ref data (+ byte-offset 1)))
-                 (char->integer (u8*-ref data (+ byte-offset 2)))))))
+      (make-vec3 (u8*-ref data byte-offset)
+                 (u8*-ref data (+ byte-offset 1))
+                 (u8*-ref data (+ byte-offset 2))))))
 
-(define (image-render image)
-  (glBindTexture GL_TEXTURE_2D (image-gl-texture-id source-image))
-  (glBegin GL_QUADS)
-  (begin
-    (glTexCoord2d 0. 1.)
-    (glVertex2f 0. 0.))
-  (begin
-    (glTexCoord2d 0. 0.)
-    (glVertex2f 0. (current-height)))
-  (begin
-    (glTexCoord2d 1. 0.)
-    (glVertex2f (current-width)
-                (current-height)))
-  (begin
-    (glTexCoord2d 1. 1.)
-    (glVertex2f (current-width) 0.))
-  (glEnd)
-  (glBindTexture GL_TEXTURE_2D 0))
+(define (image-render image #!optional width height)
+  (let ((w (or width (image-width image)))
+        (h (or height (image-height image))))
+    (glBindTexture GL_TEXTURE_2D (image-gl-texture-id image))
+    (glBegin GL_QUADS)
+    (begin
+      (glTexCoord2d 0. 1.)
+      (glVertex2f 0. 0.))
+    (begin
+      (glTexCoord2d 0. 0.)
+      (glVertex2f 0. h))
+    (begin
+      (glTexCoord2d 1. 0.)
+      (glVertex2f w h))
+    (begin
+      (glTexCoord2d 1. 1.)
+      (glVertex2f w 0.))
+    (glEnd)
+    (glBindTexture GL_TEXTURE_2D 0)))
 
 
 ;; Analzying an image, edge detection, etc.
-
-(define (find-points-on-edges image)
-  (let ((width (image-width image))
-        (height (image-height image))
-        (bytes (image-bytes image)))
-    (let loop ((points '())
-               (i 0))
-      (if (< i (* width height))
-          (if (> (byte->real (u8*-ref bytes i)) .001)
-              (loop (cons (make-vec2 (exact->inexact (/ (remainder i width) width))
-                                     (exact->inexact (/ (quotient i width) height)))
-                          points)
-                    (+ i 1))
-              (loop points (+ i 1)))
-          (list->vector points)))))
 
 (define gaussian-kernel-edge-length 5)
 (define gaussian-kernel
@@ -210,9 +218,8 @@
           f)))
 
 (define (byte->real byte)
-  (/ (char->integer byte) 255))
+  (/ byte 255.))
 
 (define (real->byte f)
-  (integer->char
-   (inexact->exact
-    (floor (* (saturate f) 255)))))
+  (inexact->exact
+   (floor (* (saturate f) 255.))))
