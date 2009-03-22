@@ -21,10 +21,11 @@
   gl-texture-id)
 
 (define (make-image width height format #!optional bytes)
-  (let* ((bytes-count (case format
-                        ((FORMAT_LUMINANCE) 1)
-                        ((FORMAT_RGB) 3)
-                        ((FORMAT_RGBA) 4)))
+  (let* ((bytes-count (cond
+                        ((eq? format FORMAT_LUMINANCE) 1)
+                        ((eq? format FORMAT_RGB) 3)
+                        ((eq? format FORMAT_RGBA) 4)
+                        (else (error "Invalid format" format))))
          (bytes (or bytes (alloc-u8 (* width height bytes-count))))
          (img (really-make-image width height bytes format #f)))
     (make-will img (lambda (x)
@@ -93,6 +94,9 @@
                  (u8*-ref data (+ byte-offset 2))))))
 
 (define (image-render image #!optional width height)
+  (if (not (image-gl-texture-id image))
+      (image-opengl-upload! image))
+  
   (let ((w (or width (image-width image)))
         (h (or height (image-height image))))
     (glBindTexture GL_TEXTURE_2D (image-gl-texture-id image))
@@ -102,13 +106,13 @@
       (glVertex2f 0. 0.))
     (begin
       (glTexCoord2d 0. 0.)
-      (glVertex2f 0. h))
+      (glVertex2f 0. (real h)))
     (begin
       (glTexCoord2d 1. 0.)
-      (glVertex2f w h))
+      (glVertex2f (real w) (real h)))
     (begin
       (glTexCoord2d 1. 1.)
-      (glVertex2f w 0.))
+      (glVertex2f (real w) 0.))
     (glEnd)
     (glBindTexture GL_TEXTURE_2D 0)))
 

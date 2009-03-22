@@ -23,20 +23,18 @@
 (load (resource lib-path "images"))
 (load (resource lib-path "vectors"))
 (load (resource lib-path "genetic"))
-;; (load (resource lib-path "util/statprof/statprof"))
+(load (resource lib-path "util/statprof/statprof"))
 
 ;; Utility
 
 (define current-width (make-parameter 0))
 (define current-height (make-parameter 0))
 
+(define source-image #f)
+(define population #f)
+
 (define exact inexact->exact)
 (define real exact->inexact)
-
-(define source-image #f)
-(define current-image #f)
-
-(define population #f)
 
 (define (display-gl-error)
   (display (gluErrorString (glGetError))))
@@ -47,12 +45,10 @@
             rest))
 
 (define (gl-scale-image-to-window image)
-  (if (not (image-gl-texture-id image))
-      (image-opengl-upload! image))
   (let ((new-image (make-image (current-width)
                                (current-height)
                                FORMAT_RGBA)))
-    (image-render image)
+    (image-render image (current-width) (current-height))
     (image-read-gl-pixels! new-image)
     new-image))
 
@@ -62,22 +58,19 @@
 ;; and are automatically called at the appropriate times.
 
 (define (init-engine width height)
-;;   (profile-start!)
+  (profile-start!)
   (current-width width)
   (current-height height)
   (freeimage-initialize #f)
   (set! source-image (load-image (resource "resources/test3.jpg")))
-  (set! current-image (make-image (current-width)
-                                  (current-height)
-                                  FORMAT_RGBA))
   (set! population (make-population 3)))
 
 (define (shutdown-engine)
   (freeimage-deinitialize)
   (free-image source-image)
   (free-image current-image)
-;;   (profile-stop!)
-;;   (write-profile-report "artbot.txt")
+  (profile-stop!)
+  (write-profile-report "bench")
   )
 
 (define (init-opengl)
@@ -104,7 +97,7 @@
   (glLoadIdentity)
   
   ;; Run all the genotypes
-  (population-run! population)
+  (population-run! population source-image)
 
   ;; Show the results
   (let ((best (population-fitness-search population >))
@@ -115,4 +108,4 @@
     (render-genotype best))
 
   ;; Evolve it another time
-  (population-evolve-three! population))
+  (set! population (population-evolve-three population)))

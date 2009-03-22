@@ -3,14 +3,9 @@
          (standard-bindings)
          (extended-bindings))
 
-;; Genotype
+(load (resource lib-path "geometry"))
 
-(define-structure polygon
-  points
-  red
-  green
-  blue
-  alpha)
+;; Genotype
 
 (define-type genotype
   id: 6446D535-85C7-45DE-B3C7-32A2E2CD0658
@@ -21,7 +16,7 @@
 (define (make-genotype data #!optional fitness)
   (really-make-genotype data (or fitness 0)))
 
-(define (copy-genotype gt)
+(define (genotype-shallow-copy gt)
   (make-genotype (genotype-data gt) 0))
 
 (define (genotype-equal? gt1 gt2)
@@ -39,59 +34,6 @@
                 (polygon-equal? (car tail1)
                                 (car tail2)))))))
 
-(define (polygon-equal? poly1 poly2)
-  (let ((points1 (polygon-points poly1))
-        (points2 (polygon-points poly2))
-        (color-same (color-equal? poly1 poly2)))
-    (let loop ((tail1 points1)
-               (tail2 points2)
-               (same #t))
-      (if (or (not same)
-              (null? tail1)
-              (null? tail2))
-          (and same color-same)
-          (loop (cdr tail1)
-                (cdr tail2)
-                (point-equal? (car tail1)
-                              (car tail2)))))))
-
-(define (point-equal? p1 p2)
-  (vec2-equal? p1 p2))
-
-(define (color-equal? poly1 poly2)
-  (and (eq? (polygon-red poly1) (polygon-red poly2))
-       (eq? (polygon-green poly1) (polygon-green poly2))
-       (eq? (polygon-blue poly1) (polygon-blue poly2))))
-
-(define global-point-field #f)
-
-(define (random-point)
-  (if global-point-field
-      (let ((point (vector-ref global-point-field
-                               (random-integer
-                                (vector-length global-point-field)))))
-        (make-vec2 (* (vec2-x point) (current-width))
-                   (* (vec2-y point) (current-height))))
-      (make-vec2
-       (* (random-real)
-          (exact->inexact (current-width)))
-       (* (random-real)
-          (exact->inexact (current-height))))))
-
-(define (random-polygon)
-  (let ((origin (random-point)))
-    (make-polygon
-     (unfold (lambda (i) (>= i 3))
-             (lambda (i) (vec2-add origin
-                                   (make-vec2 (- (random-integer 30) 15)
-                                              (- (random-integer 30) 15))))
-             (lambda (i) (+ i 1))
-             0)
-     (random-real)
-     (random-real)
-     (random-real)
-     (* (random-real) .6))))
-
 (define (random-genotype)
   (make-genotype
    (let loop ((acc '())
@@ -102,47 +44,48 @@
          acc))
    0.0))
 
-(define (%%render-polygon tri)
-  (glBegin GL_POLYGON)
-  (glColor4f (polygon-red tri)
-             (polygon-green tri)
-             (polygon-blue tri)
-             (polygon-alpha tri))
-  (let loop ((tail (polygon-points tri)))
-    (if (not (null? tail))
-        (let ((point (car tail)))
-          (glVertex2f (vec2-x point) (vec2-y point))
-          (loop (cdr tail)))))
-  (glEnd))
-
 (define (render-genotype gt)
   (let loop ((tris (genotype-data gt)))
     (if (not (null? tris))
         (begin
-          (%%render-polygon (car tris))
+          (render-polygon (car tris))
           (loop (cdr tris))))))
 
-(define (run-genotype gt)
+(define %%genotype-current-image #f)
+
+(define (run-genotype gt source-image)
+  ;; Allocate an image buffer if necessary
+  (if (or (not %%genotype-current-image)
+          (not (eq? (image-width source-image)
+                    (image-width %%genotype-current-image)))
+          (not (eq? (image-height source-image)
+                    (image-height %%genotype-current-image))))
+      (set! %%genotype-current-image
+            (make-image (image-width source-image)
+                        (image-height source-image)
+                        FORMAT_RGBA)))
+
   ;; Draw genotype
   (glClear GL_COLOR_BUFFER_BIT)
   (render-genotype gt)
+  (image-read-gl-pixels! %%genotype-current-image)
+  (calculate-fitness source-image %%genotype-current-image))
 
-  (let* ((widthi (inexact->exact (current-width)))
-         (heighti (inexact->exact (current-height))))
-    (glReadPixels 0 0
-                  widthi heighti
-                  GL_RGBA GL_UNSIGNED_BYTE
-                  (u8*->void* texture-buffer))
-    (calculate-fitness texture-buffer)))
+(define (calculate-fitness source-image image)
 
-(define (byte-difference bytes1 bytes2 i)
-  (abs (- (char->integer (u8*-ref bytes1 i))
-          (char->integer (u8*-ref bytes2 i)))))
+  (define (byte-difference bytes1 bytes2 i)
+    (abs (- (u8*-ref bytes1 i)
+            (u8*-ref bytes2 i))))
+  
+  (if (not (eq? (image-format source-image) FORMAT_RGBA))
+      (error "Source image must be in the RGBA format" source-image))
+  (if (not (eq? (image-format image) FORMAT_RGBA))
+      (error "Input image must be in the RGBA format" image))
 
-(define (calculate-fitness bytes)
-  (let ((source-bytes (image-bytes source-image-sized))
-        (width (image-width source-image-sized))
-        (height (image-height source-image-sized)))
+  (let ((source-bytes (image-bytes source-image))
+        (bytes (image-bytes image))
+        (width (image-width image))
+        (height (image-height image)))
     (let loop ((acc 0)
                (i 0))
       (if (< i (* width height 4))
@@ -154,6 +97,8 @@
           acc))))
 
 (define (overall-fitness fitness)
+  ; fitness is the total amount of difference
+  ; in the image
   (- 1.0
      (/ fitness (* (current-width)
                    (current-height)
@@ -163,8 +108,7 @@
 
 ;; Population
 
-(define (make-population size #!optional point-field)
-  (set! global-point-field point-field)
+(define (make-population size)
   (let loop ((acc '())
              (i 0))
     (if (< i size)
@@ -175,8 +119,8 @@
 (define (population-normalize pop)
   (let ((best-fitness (genotype-fitness
                        (population-fitness-search pop <)))
-        (worst-fitnes (genotype-fitness
-                       (population-fitness-search pop >))))
+        (worst-fitness (genotype-fitness
+                        (population-fitness-search pop >))))
     (let loop ((pop pop))
       (if (not (null? pop))
           (let ((gt (car pop)))
@@ -193,58 +137,47 @@
         (car pop)
         (cdr pop)))
 
-(define (population-run! pop)
+(define (population-run! pop source-image)
   (fold (lambda (el acc)
-          (genotype-fitness-set! el (run-genotype el)))
+          (genotype-fitness-set! el (run-genotype el source-image)))
         #f
         pop)
   (population-normalize population))
 
-(define (population-evolve! pop)
+(define (population-evolve pop)
   (let* ((count (length pop))
-         (sorted (sort pop
-                       (lambda (x y) (> (genotype-fitness x)
-                                        (genotype-fitness y)))))
+         (best (population-fitness-search pop >))
          (pop (unfold (lambda (i) (>= i count))
-                      (lambda (i) (make-genotype
-                                   (genotype-data (car sorted))))
+                      (lambda (i) (genotype-shallow-copy (car sorted)))
                       (lambda (i) (+ i 1))
-                      0)
-          ;; (selection-sus sorted count)
-              ))
-    (set! population
-          (let loop ((acc '())
-                     (tail pop))
-            (cond
-             ((null? tail) acc)
-             ((eq? (cdr tail) '())
-              (reverse (cons (genotype-mutate-one (car tail)) acc)))
-             (else
-              (let ((gt1 (car tail))
-                    (gt2 (cadr tail))
-                    (tail (cddr tail)))
-                (receive (new-gt1 new-gt2) (genotype-crossover gt1 gt2)
-                  (loop (cons (genotype-mutate-one new-gt2)
-                              (cons (genotype-mutate-one new-gt1) acc))
-                        tail)))))))))
+                      0)))
+    (let loop ((acc '())
+               (tail pop))
+      (cond
+       ((null? tail) acc)
+       ((eq? (cdr tail) '())
+        (reverse (cons (genotype-mutate-one (car tail)) acc)))
+       (else
+        (let ((gt1 (car tail))
+              (gt2 (cadr tail))
+              (tail (cddr tail)))
+          (receive (new-gt1 new-gt2) (genotype-crossover gt1 gt2)
+            (loop (cons (genotype-mutate-one new-gt2)
+                        (cons (genotype-mutate-one new-gt1) acc))
+                  tail))))))))
 
-(define (population-evolve-three! pop)
+(define (population-evolve-three pop)
   (if (not (eq? (length pop) 3))
-      (error "population-evolve-three!: population size must be 3"))
-  (let ((best (fold (lambda (el acc)
-                      (if (> (genotype-fitness el)
-                             (genotype-fitness acc))
-                          el acc))
-                    (car pop)
-                    (cdr pop))))
-    (set! population
-          (list (copy-genotype best)
-                (let ((gt (copy-genotype best)))
-                  (mutate-polygons! gt)
-                  gt)
-                (let ((gt (copy-genotype best)))
-                  (mutate-genotype! gt)
-                  gt)))))
+      (error "population size must be 3"))
+  (let ((best (population-fitness-search pop >)))
+    (list (genotype-shallow-copy best)  ; clone it
+          (let ((gt (genotype-shallow-copy best)))
+            (mutate-polygons! gt)       ; only mutate the polygons
+            gt)
+          (let ((gt (genotype-shallow-copy best)))
+            (mutate-genotype! gt)       ; only do stuff like
+                                        ; add/remove polygons
+            gt))))
 
 
 ;; Selection procedures
@@ -277,6 +210,9 @@
 
 
 ;; Crossover procedures
+;;
+;; These procedures are not used in this genetic program. They were
+;; initially implemented and are kept here for possible future uses.
 
 (define default-crossover-rate 0)
 
@@ -312,23 +248,27 @@
 
 
 ;; Mutation procedures
+;;
+;; This is the crux of the algorithm. The success of the genetic
+;; learning highly depends on the implementation and configuration of
+;; the following several mutation operators.
 
-(define (half-negate f)
+(define (scale-negation f)
   (- (* f 2.) 1.))
-
-(define (mutate-point point)
-  (make-vec2 (+ (vec2-x point) (* (half-negate (random-real)) 20))
-             (+ (vec2-y point) (* (half-negate (random-real)) 20))))
-
-(define (mutate-real real minv maxv)
-  (min (max (+ (* (random-real-in-range -.1 .1)) real)
-            minv)
-       maxv))
 
 (define (random-real-in-range minv maxv)
   (+ (* (random-real)
         (- maxv minv))
      minv))
+
+(define (mutate-point point)
+  (make-vec2 (+ (vec2-x point) (* (scale-negation (random-real)) 20.))
+             (+ (vec2-y point) (* (scale-negation (random-real)) 20.))))
+
+(define (mutate-real real minv maxv)
+  (min (max (+ (* (random-real-in-range -.1 .1)) real)
+            minv)
+       maxv))
 
 (define-type mutator
   name
@@ -349,13 +289,6 @@
 ;;                  (polygon-points-set!
 ;;                   poly
 ;;                   (cdr (polygon-points poly))))))
-;;          .001)
-;;         (make-mutator 'move-point
-;;          (lambda (poly)
-;;            (let* ((points (list->vector (polygon-points poly)))
-;;                   (idx (random-integer (vector-length points))))
-;;              (vector-set! points idx (random-point))
-;;              (polygon-points-set! poly (vector->list points))))
 ;;          .001)
         (make-mutator 'move-point-minor
          (lambda (poly)
@@ -452,11 +385,7 @@
    (polygons-mutate-many (genotype-data gt))))
 
 (define (mutate-genotype! gt)
-  (run-mutators genotype-mutators gt)
-  ;; (genotype-data-set!
-;;    gt
-;;    (polygons-mutate-many (genotype-data gt)))
-  )
+  (run-mutators genotype-mutators gt))
 
 (define (polygons-mutate-many polys)
   (let loop ((acc '())

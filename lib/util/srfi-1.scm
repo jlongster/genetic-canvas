@@ -1,7 +1,36 @@
 
-(declare (block)
-         (standard-bindings)
-         (extended-bindings))
+(define-macro (let-optionals rest-arg bindings . body)
+  (if (null? bindings)
+      `(let () ,@body)
+      (let ((proc (lambda (optional)
+                    `(,(car optional)
+                      (cond
+                       ((not (null? ,rest-arg))
+                        (let ((result (car ,rest-arg)))
+                          ,(list 'set! rest-arg
+                                 `(cdr ,rest-arg))
+                          result))
+                       (else
+                        ,(cadr optional))))))
+            (bindings (map (lambda (x)
+                             (if (list? x)
+                                 x
+                                 (list x #f)))
+                           bindings)))
+        `(let ,(map proc bindings) ,@body))))
+
+(define-macro (check-arg pred val caller)
+  `(if (,pred ,val) ,val (snow-error "Bad Argument" ,val ,pred ,caller)))
+
+; Tony Sidaway: This was originally written as "optional" and it clashes with a 
+; form built into Chicken scheme so I've changed this internal procedure to optional*
+(define (optional* var val . pred)
+  (if (or (null? var) (not (or (null? pred) ((car pred) (car var)))))
+      val
+      (car var)))
+
+
+
 
 ;;; SRFI-1 list-processing library 			-*- Scheme -*-
 ;;; Reference implementation
@@ -158,9 +187,9 @@
 ;;;   Uses of the R5RS multiple-value procedure VALUES and the m-v binding
 ;;;     RECEIVE macro (which isn't R5RS, but is a trivial macro).
 ;;;   Many calls to a parameter-checking procedure check-arg:
-(define (check-arg pred val caller)
-  (let lp ((val val))
-    (if (pred val) val (lp (error "Bad argument" val pred caller)))))
+;;;    (define (check-arg pred val caller)
+;;;      (let lp ((val val))
+;;;        (if (pred val) val (lp (error "Bad argument" val pred caller)))))
 ;;;   A few uses of the LET-OPTIONAL and :OPTIONAL macros for parsing
 ;;;     optional arguments.
 ;;;
@@ -808,7 +837,7 @@
   (check-arg procedure? p unfold-right)
   (check-arg procedure? f unfold-right)
   (check-arg procedure? g unfold-right)
-  (let lp ((seed seed) (ans (:optional maybe-tail '())))
+  (let lp ((seed seed) (ans (optional* maybe-tail '())))
     (if (p seed) ans
 	(lp (g seed)
 	    (cons (f seed) ans)))))
@@ -1206,16 +1235,16 @@
 ;;; alist-delete key alist [=]	Alist-delete by key comparison
 
 (define (delete x lis . maybe-=) 
-  (let ((= (:optional maybe-= equal?)))
+  (let ((= (optional* maybe-= equal?)))
     (filter (lambda (y) (not (= x y))) lis)))
 
 (define (delete! x lis . maybe-=)
-  (let ((= (:optional maybe-= equal?)))
+  (let ((= (optional* maybe-= equal?)))
     (filter! (lambda (y) (not (= x y))) lis)))
 
 ;;; Extended from R4RS to take an optional comparison argument.
 (define (member x lis . maybe-=)
-  (let ((= (:optional maybe-= equal?)))
+  (let ((= (optional* maybe-= equal?)))
     (find-tail (lambda (y) (= x y)) lis)))
 
 ;;; R4RS, hence we don't bother to define.
@@ -1235,7 +1264,7 @@
 ;;; element-marking. The former gives you O(n lg n), the latter is linear.
 
 (define (delete-duplicates lis . maybe-=)
-  (let ((elt= (:optional maybe-= equal?)))
+  (let ((elt= (optional* maybe-= equal?)))
     (check-arg procedure? elt= delete-duplicates)
     (let recur ((lis lis))
       (if (null-list? lis) lis
@@ -1244,8 +1273,10 @@
 		 (new-tail (recur (delete x tail elt=))))
 	    (if (eq? tail new-tail) lis (cons x new-tail)))))))
 
-(define (delete-duplicates! lis maybe-=)
-  (let ((elt= (:optional maybe-= equal?)))
+;; Jeremie : The dot was missing here.
+
+(define (delete-duplicates! lis . maybe-=)
+  (let ((elt= (optional* maybe-= equal?)))
     (check-arg procedure? elt= delete-duplicates!)
     (let recur ((lis lis))
       (if (null-list? lis) lis
@@ -1260,7 +1291,7 @@
 
 ;;; Extended from R4RS to take an optional comparison argument.
 (define (assoc x lis . maybe-=)
-  (let ((= (:optional maybe-= equal?)))
+  (let ((= (optional* maybe-= equal?)))
     (find (lambda (entry) (= x (car entry))) lis)))
 
 (define (alist-cons key datum alist) (cons (cons key datum) alist))
@@ -1270,11 +1301,11 @@
        alist))
 
 (define (alist-delete key alist . maybe-=)
-  (let ((= (:optional maybe-= equal?)))
+  (let ((= (optional* maybe-= equal?)))
     (filter (lambda (elt) (not (= key (car elt)))) alist)))
 
 (define (alist-delete! key alist . maybe-=)
-  (let ((= (:optional maybe-= equal?)))
+  (let ((= (optional* maybe-= equal?)))
     (filter! (lambda (elt) (not (= key (car elt)))) alist)))
 
 

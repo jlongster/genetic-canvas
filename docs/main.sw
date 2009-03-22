@@ -195,6 +195,24 @@ Fires up the real engine.
             (c-vec2-y (c-vec2*-ref res 3))
             "\n"))))
 
+\section{Util}
+
+\subsection{(random-real-in-range minv maxv)}
+
+(define-test random-real-in-range
+  (let ((r (random-real-in-range 105.5 109.2)))
+    (assert (and (>= r 105.5)
+                 (<= r 109.2))))
+  (let ((r (random-real-in-range 105.5 109.2)))
+    (assert (and (>= r 105.5)
+                 (<= r 109.2))))
+  (let ((r (random-real-in-range 105.5 109.2)))
+    (assert (and (>= r 105.5)
+                 (<= r 109.2))))
+  (let ((r (random-real-in-range 105.5 109.2)))
+    (assert (and (>= r 105.5)
+                 (<= r 109.2)))))
+
 \section{Benchmarks}
     
 (shutdown-engine)
