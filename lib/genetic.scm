@@ -3,7 +3,8 @@
          (standard-bindings)
          (extended-bindings))
 
-(load (resource lib-path "geometry"))
+(include "ffi/ffi#.scm")
+(c-declare "#include \"genetic-util.c\"")
 
 ;; Genotype
 
@@ -38,7 +39,7 @@
   (make-genotype
    (let loop ((acc '())
               (i 0))
-     (if (< i 0)
+     (if (< i initial-num-polygons)
          (loop (cons (random-polygon) acc)
                (+ i 1))
          acc))
@@ -71,30 +72,46 @@
   (image-read-gl-pixels! %%genotype-current-image)
   (calculate-fitness source-image %%genotype-current-image))
 
+(define %%calculate-fitness
+  (c-lambda (u8* u8* int) unsigned-long "calculate_fitness"))
+
 (define (calculate-fitness source-image image)
 
-  (define (byte-difference bytes1 bytes2 i)
-    (abs (- (u8*-ref bytes1 i)
-            (u8*-ref bytes2 i))))
-  
   (if (not (eq? (image-format source-image) FORMAT_RGBA))
       (error "Source image must be in the RGBA format" source-image))
   (if (not (eq? (image-format image) FORMAT_RGBA))
       (error "Input image must be in the RGBA format" image))
 
-  (let ((source-bytes (image-bytes source-image))
-        (bytes (image-bytes image))
-        (width (image-width image))
-        (height (image-height image)))
-    (let loop ((acc 0)
-               (i 0))
-      (if (< i (* width height 4))
-          (loop (+ acc
-                   (byte-difference bytes source-bytes i)
-                   (byte-difference bytes source-bytes (+ i 1))
-                   (byte-difference bytes source-bytes (+ i 2)))
-                (+ i 4))
-          acc))))
+  (%%calculate-fitness (image-bytes image)
+                       (image-bytes source-image)
+                       (* (image-width source-image)
+                          (image-height source-image)
+                          4)))
+
+;; (define (calculate-fitness source-image image)
+
+;;   (define (byte-difference bytes1 bytes2 i)
+;;     (abs (- (u8*-ref bytes1 i)
+;;             (u8*-ref bytes2 i))))
+  
+;;   (if (not (eq? (image-format source-image) FORMAT_RGBA))
+;;       (error "Source image must be in the RGBA format" source-image))
+;;   (if (not (eq? (image-format image) FORMAT_RGBA))
+;;       (error "Input image must be in the RGBA format" image))
+
+;;   (let ((source-bytes (image-bytes source-image))
+;;         (bytes (image-bytes image))
+;;         (width (image-width image))
+;;         (height (image-height image)))
+;;     (let loop ((acc 0)
+;;                (i 0))
+;;       (if (< i (* width height 4))
+;;           (loop (+ acc
+;;                    (byte-difference bytes source-bytes i)
+;;                    (byte-difference bytes source-bytes (+ i 1))
+;;                    (byte-difference bytes source-bytes (+ i 2)))
+;;                 (+ i 4))
+;;           acc))))
 
 (define (overall-fitness fitness)
   ; fitness is the total amount of difference
@@ -372,7 +389,7 @@
         (let ((m (car tail)))
           (if (< (random-real) (mutator-probability m))
               (begin
-                (display (mutator-name m)) (newline)
+                ;; (display (mutator-name m)) (newline)
                 ((mutator-func m) thing)))
           (loop (cdr tail))))))
 

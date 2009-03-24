@@ -12,18 +12,32 @@
 ;; Required modules
 
 (include "ffi/util.scm")
+;; (load (resource lib-path "ffi/gl/gl"))
+;; (load (resource lib-path "ffi/gl/glu"))
+;; (load (resource lib-path "ffi/ffi"))
+;; (load (resource lib-path "ffi/freeimage"))
+;; (load (resource lib-path "util/sort.scm"))
+;; (load (resource lib-path "util/srfi-1.scm"))
+;; (load (resource lib-path "util/srfi-13.scm"))
+;; (load (resource lib-path "settings"))
+;; (load (resource lib-path "images"))
+;; (load (resource lib-path "vectors"))
+;; (load (resource lib-path "genetic"))
+;; (load (resource lib-path "util/statprof/statprof"))
+;; (load (resource lib-path "geometry"))
 (load (resource lib-path "ffi/gl/gl"))
 (load (resource lib-path "ffi/gl/glu"))
 (load (resource lib-path "ffi/ffi"))
 (load (resource lib-path "ffi/freeimage"))
-(load (resource lib-path "util/sort.scm"))
-(load (resource lib-path "util/srfi-1.scm"))
-(load (resource lib-path "util/srfi-13.scm"))
-(load (resource lib-path "settings"))
-(load (resource lib-path "images"))
-(load (resource lib-path "vectors"))
-(load (resource lib-path "genetic"))
-(load (resource lib-path "util/statprof/statprof"))
+(include "util/sort.scm")
+(include "util/srfi-1.scm")
+(include "util/srfi-13.scm")
+(include "settings.scm")
+(include "images.scm")
+(include "vectors.scm")
+(include "genetic.scm")
+(include "geometry.scm")
+(include "util/statprof/statprof.scm")
 
 ;; Utility
 
@@ -58,20 +72,16 @@
 ;; and are automatically called at the appropriate times.
 
 (define (init-engine width height)
-  (profile-start!)
   (current-width width)
   (current-height height)
   (freeimage-initialize #f)
-  (set! source-image (load-image (resource "resources/test3.jpg")))
+  (set! source-image (load-image (resource "resources/monalisa.jpg")))
   (set! population (make-population 3)))
 
 (define (shutdown-engine)
   (freeimage-deinitialize)
   (free-image source-image)
-  (free-image current-image)
-  (profile-stop!)
-  (write-profile-report "bench")
-  )
+  (free-image current-image))
 
 (define (init-opengl)
   (glMatrixMode GL_PROJECTION)
@@ -92,20 +102,32 @@
   (set! source-image (gl-scale-image-to-window source-image))
   (optimize-settings source-image))
 
+(define i 0)
+(define average 0)
+
 (define (run-frame)
-  (glClearColor 1. 1. 1. 1.)
-  (glLoadIdentity)
+  (let ((start (real-time)))
+    (glClearColor 1. 1. 1. 1.)
+    (glLoadIdentity)
   
-  ;; Run all the genotypes
-  (population-run! population source-image)
+    ;; Run all the genotypes
+    (population-run! population source-image)
 
-  ;; Show the results
-  (let ((best (population-fitness-search population >))
-        (worst (population-fitness-search population <)))
-    (glClear GL_COLOR_BUFFER_BIT)
-    (glColor4f 1. 1. 1. .1)
-    (image-render source-image)
-    (render-genotype best))
+    ;; Show the results
+    (let ((best (population-fitness-search population >))
+          (worst (population-fitness-search population <)))
+      (glClear GL_COLOR_BUFFER_BIT)
+      (glColor4f 1. 1. 1. .1)
+      (image-render source-image)
+      (render-genotype best))
 
-  ;; Evolve it another time
-  (set! population (population-evolve-three population)))
+    ;; Evolve it another time
+    (set! population (population-evolve-three population))
+
+    (let ((timed (- (real-time) start)))
+      (set! average (/ (+ (* i average) timed)
+                       (+ i 1)))
+      (set! i (+ i 1))
+      ;; (show "time: " timed "s, ")
+;;       (show "avg: " average "s\n")
+      )))

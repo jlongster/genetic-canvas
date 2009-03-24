@@ -1,4 +1,8 @@
 
+(declare (block)
+         (standard-bindings)
+         (extended-bindings))
+
 (define-macro (let-optionals rest-arg bindings . body)
   (if (null? bindings)
       `(let () ,@body)
@@ -28,9 +32,6 @@
   (if (or (null? var) (not (or (null? pred) ((car pred) (car var)))))
       val
       (car var)))
-
-
-
 
 ;;; SRFI-1 list-processing library 			-*- Scheme -*-
 ;;; Reference implementation

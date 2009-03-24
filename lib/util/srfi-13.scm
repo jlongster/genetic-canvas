@@ -139,83 +139,63 @@
 
 
 
-(cond-expand
- ((or chicken gambit petite mzscheme scheme48 scsh)
-  (define-macro (let-optionals* arg bindings . body)
-    `(let ((rest ,arg))
-       (%let-optionals* rest ,bindings ,body)))
+(define-macro (let-optionals* arg bindings . body)
+  `(let ((rest ,arg))
+     (%let-optionals* rest ,bindings ,body)))
 
-  (define-macro (%let-optionals* arg bindings body)
-    (cond ((null? bindings)
-	   `(begin ,@body))
-	  ((symbol? (car bindings))
-	   (let ((rest (car bindings)))
-	     `(let ((,rest ,arg))
-		,@body)))
-	  (else
-	   (let* ((current (car bindings))
-		  (lgt (length current))
-		  (opt-clauses (cdr bindings)))
-	     (cond ((= lgt 4)
-		    (let ((var (car current))
-			  (default (cadr current))
-			  (test (caddr current))
-			  (supplied? (cadddr current)))
-		      `(call-with-values 
-			   (lambda ()
-			     (if (null? ,arg) (values ,default #f '())
-				 (let ((,var (car ,arg)))
-				   (if ,test (values ,var #t (cdr ,arg))
-				       (error "arg failed LET-OPT test" ,var)))))
-			 (lambda (,var ,supplied? ,rest)
-			   (%let-optionals* rest ,opt-clauses ,body)))))
-		   ((= lgt 3)
-		    (let ((var (car current))
-			  (default (cadr current))
-			  (test (caddr current)))
-		      `(call-with-values
-			   (lambda ()
-			     (if (null? ,arg) (values ,default '())
-				 (let ((,var (car ,arg)))
-				   (if ,test (values ,var (cdr ,arg))
-				       (error "arg failed LET-OPT test" ,var)))))
-			 (lambda (,var rest)
-			   (%let-optionals* rest ,opt-clauses ,body)))))
-		   ((list? (car current))
-		    (let ((vars (car current))
-			  (xparser (cadr current)))
-		      `(call-with-values 
-			   (lambda () (,xparser ,arg))
-			 (lambda (rest ,@vars)
-			   (%let-optionals* rest ,opt-clauses ,body)))))
-		   (else
-		    (let ((var (car current))
-			  (default (cadr current)))
-		      `(call-with-values
-			    (lambda () 
-			      (if (null? ,arg) 
-				  (values ,default '())
-				  (values (car ,arg) (cdr ,arg))))
-			  (lambda (,var rest)
-			    (%let-optionals* rest ,opt-clauses ,body)))))))))))
- (else))
-
-(cond-expand
- ((or mzscheme)
-  (define-macro (receive vars prod . body)
-    `(call-with-values (lambda () ,prod)
-       (lambda ,vars ,@body))))
- (else))
-
-(define-macro (check-arg pred val caller)
-  `(if (,pred ,val) ,val (error "Bad Argument" ,val ,pred ,caller)))
-
-; Tony Sidaway: This was originally written as "optional" and it clashes with a 
-; form built into Chicken scheme so I've changed this internal procedure to optional*
-(define (optional* var val . pred)
-  (if (or (null? var) (not (or (null? pred) ((car pred) (car var)))))
-      val
-      (car var)))
+(define-macro (%let-optionals* arg bindings body)
+  (cond ((null? bindings)
+         `(begin ,@body))
+        ((symbol? (car bindings))
+         (let ((rest (car bindings)))
+           `(let ((,rest ,arg))
+              ,@body)))
+        (else
+         (let* ((current (car bindings))
+                (lgt (length current))
+                (opt-clauses (cdr bindings)))
+           (cond ((= lgt 4)
+                  (let ((var (car current))
+                        (default (cadr current))
+                        (test (caddr current))
+                        (supplied? (cadddr current)))
+                    `(call-with-values 
+                         (lambda ()
+                           (if (null? ,arg) (values ,default #f '())
+                               (let ((,var (car ,arg)))
+                                 (if ,test (values ,var #t (cdr ,arg))
+                                     (error "arg failed LET-OPT test" ,var)))))
+                       (lambda (,var ,supplied? ,rest)
+                         (%let-optionals* rest ,opt-clauses ,body)))))
+                 ((= lgt 3)
+                  (let ((var (car current))
+                        (default (cadr current))
+                        (test (caddr current)))
+                    `(call-with-values
+                         (lambda ()
+                           (if (null? ,arg) (values ,default '())
+                               (let ((,var (car ,arg)))
+                                 (if ,test (values ,var (cdr ,arg))
+                                     (error "arg failed LET-OPT test" ,var)))))
+                       (lambda (,var rest)
+                         (%let-optionals* rest ,opt-clauses ,body)))))
+                 ((list? (car current))
+                  (let ((vars (car current))
+                        (xparser (cadr current)))
+                    `(call-with-values 
+                         (lambda () (,xparser ,arg))
+                       (lambda (rest ,@vars)
+                         (%let-optionals* rest ,opt-clauses ,body)))))
+                 (else
+                  (let ((var (car current))
+                        (default (cadr current)))
+                    `(call-with-values
+                         (lambda () 
+                           (if (null? ,arg) 
+                               (values ,default '())
+                               (values (car ,arg) (cdr ,arg))))
+                       (lambda (,var rest)
+                         (%let-optionals* rest ,opt-clauses ,body))))))))))
 
 ;; I did those in define-macro as define-syntax was problematic
 

@@ -3,7 +3,7 @@
          (standard-bindings)
          (extended-bindings))
 
-(include "ffi/util.scm")
+;; (include "ffi/util.scm")
 
 ;; Images
 

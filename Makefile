@@ -7,16 +7,17 @@ main.nib: app/main.xib
 		--compile main.nib app/main.xib
 
 app/entry.c: app/entry.scm
-	gsc -c app/entry.scm
+	gsc -track-scheme -c app/entry.scm
 
 lib/init.c: lib/init.scm lib/resources.scm
-	gsc -c lib/init.scm
+	gsc -track-scheme -c lib/init.scm
 
 app/link_.c: app/entry.c lib/init.c
 	gsc -link -o app/link_.c lib/init.c app/entry.c
 
 main: app/link_.c app/cocoa.m app/glview.m app/glwindow.m app/app.m
-	gcc -o main app/link_.c lib/init.c app/entry.c \
+	gcc -o main \
+		app/link_.c lib/init.c app/entry.c \
 		app/cocoa.m app/glview.m \
 		app/glwindow.m \
 		app/app.m \
@@ -25,35 +26,40 @@ main: app/link_.c app/cocoa.m app/glview.m app/glwindow.m app/app.m
 		-lgambc \
 	 	-lIL \
 		-sectcreate __TEXT __info_plist app/Info.plist
+# 		-lSaturn -finstrument-functions
 
 lib/ffi/ffi.o1: lib/ffi/ffi.scm
 	rm -f lib/ffi/ffi.o1
-	gsc lib/ffi/ffi.scm
+	gsc -track-scheme lib/ffi/ffi.scm
 
 lib/ffi/gl/gl.o1: lib/ffi/gl/gl.scm
 	rm -f lib/ffi/gl/gl.o1
-	gsc -cc-options '-framework OpenGL' lib/ffi/gl/gl.scm
+	gsc -track-scheme -cc-options '-framework OpenGL' lib/ffi/gl/gl.scm
 
 lib/ffi/gl/glu.o1: lib/ffi/gl/glu.scm
 	rm -f lib/ffi/gl/glu.o1
-	gsc -cc-options '-framework OpenGL' lib/ffi/gl/glu.scm
+	gsc -track-scheme -cc-options '-framework OpenGL' lib/ffi/gl/glu.scm
 
 lib/ffi/freeimage.o1: lib/ffi/freeimage.scm
 	rm -f lib/ffi/freeimage.o1
-	gsc -ld-options "-L/opt/local/lib -lfreeimage" \
+	gsc -track-scheme -ld-options "-L/opt/local/lib -lfreeimage" \
 		lib/ffi/freeimage.scm
 
 lib/engine.o1: lib/engine.scm
 	rm -f lib/engine.o1
-	gsc lib/engine.scm
+	gsc -track-scheme lib/engine.scm
 
 lib/genetic.o1: lib/genetic.scm
 	rm -f lib/genetic.o1
-	gsc lib/genetic.scm
+	gsc -track-scheme lib/genetic.scm
+
+lib/geometry.o1: lib/geometry.scm
+	rm -f lib/geometry.o1
+	gsc -track-scheme lib/geometry.scm
 
 lib/images.o1: lib/images.scm
 	rm -f lib/images.o1
-	gsc lib/images.scm
+	gsc -track-scheme lib/images.scm
 
 objects: lib/ffi/ffi.o1 \
 	lib/ffi/gl/gl.o1 \
@@ -61,6 +67,7 @@ objects: lib/ffi/ffi.o1 \
 	lib/ffi/freeimage.o1 \
 	lib/engine.o1 \
 	lib/genetic.o1 \
+	lib/geometry.o1 \
 	lib/images.o1
 
 clean-objects:

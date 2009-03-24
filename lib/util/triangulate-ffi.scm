@@ -3,6 +3,14 @@
 
 (c-define-type c-vec2 (struct "vec2"))
 (c-define-type c-vec2* (pointer c-vec2))
+(c-define-type c-vec2-vector (struct "vec2_vector"))
+(c-define-type c-vec2-vector* (pointer c-vec2-vector))
+
+(define c-vec2-vector-data
+  (c-lambda (c-vec2-vector*) c-vec2* "___result_voidstar = ___arg1->data;"))
+
+(define c-vec2-vector-length
+  (c-lambda (c-vec2-vector*) int "___result = ___arg1->length;"))
 
 (define make-c-vec2
   (c-lambda (float float) c-vec2* #<<end-c-code
@@ -14,10 +22,10 @@ end-c-code
 ))
 
 (define c-vec2-x
-  (c-lambda (c-vec2*) float "___result = (*___arg1).x;"))
+  (c-lambda (c-vec2*) float "___result = ___arg1->x;"))
 
 (define c-vec2-y
-  (c-lambda (c-vec2*) float "___result = (*___arg1).y;"))
+  (c-lambda (c-vec2*) float "___result = ___arg1->y;"))
 
 (define c-vec2-x-set!
   (c-lambda (c-vec2* float) void
@@ -48,5 +56,25 @@ end-c-code
             (c-vec2-y-set! inst (vec2-y head))
             (loop (+ i 1) (cdr tail)))))))
 
-(define triangulate
-  (c-lambda (c-vec2* int) c-vec2* "triangulate"))
+(define (c-vec2->vec2 vec)
+  (make-vec2 (c-vec2-x vec)
+             (c-vec2-y vec)))
+
+(define (c-vec2-vector->vec2-list vec)
+  (let ((length (c-vec2-vector-length vec))
+        (data (c-vec2-vector-data vec)))
+    (unfold (lambda (i) (>= i length))
+            (lambda (i) (c-vec2->vec2 (c-vec2*-ref data i)))
+            (lambda (i) (+ i 1))
+            0)))
+
+(define %%triangulate
+  (c-lambda (c-vec2* int) c-vec2-vector* "triangulate"))
+
+(define (triangulate points)
+  (let* ((c-points (vec2-list->c-vec2-vector points))
+         (data (%%triangulate c-points (length points)))
+         (result (c-vec2-vector->vec2-list data)))
+    (free c-points)
+    (free data)
+    result))

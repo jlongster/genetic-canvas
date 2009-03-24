@@ -1,4 +1,6 @@
 
+(define initial-num-polygons 0)
+
 (define min-red 0.)
 (define max-red 1.)
 (define min-green 0.)
