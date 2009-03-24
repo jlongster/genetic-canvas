@@ -1,4 +1,4 @@
-all: main Main.app main.nib
+all: main Main.app main.nib objects
 
 main.nib: app/main.xib
 	rm -rf main.nib
@@ -7,9 +7,9 @@ main.nib: app/main.xib
 		--compile main.nib app/main.xib
 
 app/entry.c: app/entry.scm
-	gsc -track-scheme -c app/entry.scm
+	gsc -c app/entry.scm
 
-lib/init.c: lib/init.scm lib/resources.scm
+lib/init.c: lib/init.scm
 	gsc -track-scheme -c lib/init.scm
 
 app/link_.c: app/entry.c lib/init.c
@@ -30,36 +30,48 @@ main: app/link_.c app/cocoa.m app/glview.m app/glwindow.m app/app.m
 
 lib/ffi/ffi.o1: lib/ffi/ffi.scm
 	rm -f lib/ffi/ffi.o1
-	gsc -track-scheme lib/ffi/ffi.scm
+	gsc lib/ffi/ffi.scm
 
 lib/ffi/gl/gl.o1: lib/ffi/gl/gl.scm
 	rm -f lib/ffi/gl/gl.o1
-	gsc -track-scheme -cc-options '-framework OpenGL' lib/ffi/gl/gl.scm
+	gsc -cc-options '-framework OpenGL' lib/ffi/gl/gl.scm
 
 lib/ffi/gl/glu.o1: lib/ffi/gl/glu.scm
 	rm -f lib/ffi/gl/glu.o1
-	gsc -track-scheme -cc-options '-framework OpenGL' lib/ffi/gl/glu.scm
+	gsc -cc-options '-framework OpenGL' lib/ffi/gl/glu.scm
 
 lib/ffi/freeimage.o1: lib/ffi/freeimage.scm
 	rm -f lib/ffi/freeimage.o1
-	gsc -track-scheme -ld-options "-L/opt/local/lib -lfreeimage" \
+	gsc -ld-options "-L/opt/local/lib -lfreeimage" \
 		lib/ffi/freeimage.scm
+
+lib/ffi/triangulate-ffi.o1: lib/ffi/triangulate-ffi.scm
+	rm -f lib/ffi/triangulate-ffi.o1
+	gsc lib/ffi/triangulate-ffi.scm
 
 lib/engine.o1: lib/engine.scm
 	rm -f lib/engine.o1
-	gsc -track-scheme lib/engine.scm
+	gsc lib/engine.scm
 
 lib/genetic.o1: lib/genetic.scm
 	rm -f lib/genetic.o1
-	gsc -track-scheme lib/genetic.scm
+	gsc lib/genetic.scm
+
+lib/fitness-ffi.o1: lib/fitness-ffi.scm
+	rm -f lib/fitness-ffi.o1
+	gsc lib/fitness-ffi.scm
 
 lib/geometry.o1: lib/geometry.scm
 	rm -f lib/geometry.o1
-	gsc -track-scheme lib/geometry.scm
+	gsc lib/geometry.scm
 
 lib/images.o1: lib/images.scm
 	rm -f lib/images.o1
-	gsc -track-scheme lib/images.scm
+	gsc lib/images.scm
+
+lib/settings.o1: lib/settings.scm
+	rm -f lib/settings.o1
+	gsc lib/settings.scm
 
 objects: lib/ffi/ffi.o1 \
 	lib/ffi/gl/gl.o1 \
@@ -68,7 +80,8 @@ objects: lib/ffi/ffi.o1 \
 	lib/engine.o1 \
 	lib/genetic.o1 \
 	lib/geometry.o1 \
-	lib/images.o1
+	lib/images.o1 \
+	lib/settings.o1
 
 clean-objects:
 	find . -iname '*.o1' | xargs rm
@@ -132,6 +145,11 @@ test-images: docs/images/images.sw
 	 	-lIL \
 		-sectcreate __TEXT __info_plist docs/images/Info.plist
 	docs/images/images
+
+test-triangulate: docs/triangulate.scm
+	rm -f docs/triangulate.o1
+	gsc docs/triangulate.scm
+	gsi docs/triangulate
 
 pdf: docs/main.sw docs/engine.sw
 	sweb -w docs/main.sw > docs/main.tex

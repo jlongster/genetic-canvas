@@ -3,9 +3,6 @@
          (standard-bindings)
          (extended-bindings))
 
-(include "ffi/ffi#.scm")
-(c-declare "#include \"genetic-util.c\"")
-
 ;; Genotype
 
 (define-type genotype
@@ -72,11 +69,7 @@
   (image-read-gl-pixels! %%genotype-current-image)
   (calculate-fitness source-image %%genotype-current-image))
 
-(define %%calculate-fitness
-  (c-lambda (u8* u8* int) unsigned-long "calculate_fitness"))
-
 (define (calculate-fitness source-image image)
-
   (if (not (eq? (image-format source-image) FORMAT_RGBA))
       (error "Source image must be in the RGBA format" source-image))
   (if (not (eq? (image-format image) FORMAT_RGBA))
@@ -87,40 +80,6 @@
                        (* (image-width source-image)
                           (image-height source-image)
                           4)))
-
-;; (define (calculate-fitness source-image image)
-
-;;   (define (byte-difference bytes1 bytes2 i)
-;;     (abs (- (u8*-ref bytes1 i)
-;;             (u8*-ref bytes2 i))))
-  
-;;   (if (not (eq? (image-format source-image) FORMAT_RGBA))
-;;       (error "Source image must be in the RGBA format" source-image))
-;;   (if (not (eq? (image-format image) FORMAT_RGBA))
-;;       (error "Input image must be in the RGBA format" image))
-
-;;   (let ((source-bytes (image-bytes source-image))
-;;         (bytes (image-bytes image))
-;;         (width (image-width image))
-;;         (height (image-height image)))
-;;     (let loop ((acc 0)
-;;                (i 0))
-;;       (if (< i (* width height 4))
-;;           (loop (+ acc
-;;                    (byte-difference bytes source-bytes i)
-;;                    (byte-difference bytes source-bytes (+ i 1))
-;;                    (byte-difference bytes source-bytes (+ i 2)))
-;;                 (+ i 4))
-;;           acc))))
-
-(define (overall-fitness fitness)
-  ; fitness is the total amount of difference
-  ; in the image
-  (- 1.0
-     (/ fitness (* (current-width)
-                   (current-height)
-                   255
-                   3))))
 
 
 ;; Population
@@ -133,6 +92,10 @@
               (+ i 1))
         acc)))
 
+;; Normalizes genotype's fitness into something meaningful. Currently
+;; it does this by finding the worst solution, and subtracting every
+;; fitness from it. This inverts the scale and leaves the worst
+;; solution with a fitness of 0.
 (define (population-normalize pop)
   (let ((best-fitness (genotype-fitness
                        (population-fitness-search pop <)))
@@ -161,43 +124,47 @@
         pop)
   (population-normalize population))
 
+;; Drives the evolution cycle, using elitist selection
+;; and running full genotype mutation on every one
 (define (population-evolve pop)
   (let* ((count (length pop))
-         (best (population-fitness-search pop >))
-         (pop (unfold (lambda (i) (>= i count))
-                      (lambda (i) (genotype-shallow-copy (car sorted)))
-                      (lambda (i) (+ i 1))
-                      0)))
+         (lst (selection-elitist pop count)))
     (let loop ((acc '())
-               (tail pop))
-      (cond
-       ((null? tail) acc)
-       ((eq? (cdr tail) '())
-        (reverse (cons (genotype-mutate-one (car tail)) acc)))
-       (else
-        (let ((gt1 (car tail))
-              (gt2 (cadr tail))
-              (tail (cddr tail)))
-          (receive (new-gt1 new-gt2) (genotype-crossover gt1 gt2)
-            (loop (cons (genotype-mutate-one new-gt2)
-                        (cons (genotype-mutate-one new-gt1) acc))
-                  tail))))))))
+               (tail lst))
+      (if (null? tail)
+          acc
+          (let ((head (car tail)))
+            (mutate-genotype! head)
+            (loop (cons head acc)
+                  (cdr tail)))))))
 
+;; Special case evolution. We enforce a population size of 3, leaving
+;; the first one a cloned copy, mutating only the polygons of the
+;; second, and mutating only the geometry of the third.
 (define (population-evolve-three pop)
-  (if (not (eq? (length pop) 3))
-      (error "population size must be 3"))
-  (let ((best (population-fitness-search pop >)))
-    (list (genotype-shallow-copy best)  ; clone it
-          (let ((gt (genotype-shallow-copy best)))
-            (mutate-polygons! gt)       ; only mutate the polygons
-            gt)
-          (let ((gt (genotype-shallow-copy best)))
-            (mutate-genotype! gt)       ; only do stuff like
-                                        ; add/remove polygons
-            gt))))
+  (let* ((lst (selection-elitist pop 3))
+         (polygoner (cadr lst))
+         (genotyper (caddr lst)))
+    (mutate-polygons! polygoner) ; only mutate the polygons
+    (mutate-geometry! genotyper) ; only do stuff like add/remove
+                                 ; polygons
+    lst))
 
 
 ;; Selection procedures
+;;
+;; SELECTION-ELITIST is the only used selection procedure.
+;;
+;; It was quickly found that a pure elitist selection was the only way
+;; for the algorithm to converge.  The roulette wheel selection and
+;; stochastic universal sampling procedures are not used anymore.
+
+(define (selection-elitist pop n)
+  (let ((best (population-fitness-search pop >)))
+    (unfold (lambda (i) (>= i n))
+            (lambda (i) (genotype-shallow-copy best))
+            (lambda (i) (+ i 1))
+            0)))
 
 (define (selection-rws pop f #!optional (get-fitness genotype-fitness))
   (let loop ((lst pop)
@@ -228,7 +195,10 @@
 
 ;; Crossover procedures
 ;;
-;; These procedures are not used in this genetic program. They were
+;; These procedures are NOT used in this genetic algorithm.
+;;
+;; It was quickly found that this genetic algorithm only benefits from
+;; slight mutations and no crossovers. These crossover operations were
 ;; initially implemented and are kept here for possible future uses.
 
 (define default-crossover-rate 0)
@@ -266,132 +236,35 @@
 
 ;; Mutation procedures
 ;;
-;; This is the crux of the algorithm. The success of the genetic
-;; learning highly depends on the implementation and configuration of
-;; the following several mutation operators.
-
-(define (scale-negation f)
-  (- (* f 2.) 1.))
-
-(define (random-real-in-range minv maxv)
-  (+ (* (random-real)
-        (- maxv minv))
-     minv))
-
-(define (mutate-point point)
-  (make-vec2 (+ (vec2-x point) (* (scale-negation (random-real)) 20.))
-             (+ (vec2-y point) (* (scale-negation (random-real)) 20.))))
-
-(define (mutate-real real minv maxv)
-  (min (max (+ (* (random-real-in-range -.1 .1)) real)
-            minv)
-       maxv))
-
-(define-type mutator
-  name
-  func
-  probability)
-
-;; add a "move polygon"?
-(define poly-mutators
-  (list ;; (make-mutator 'add-point
-;;          (lambda (poly)
-;;            (polygon-points-set! poly
-;;             (cons (random-point) (polygon-points poly))))
-;;          .001)
-;;         (make-mutator 'remove-point
-;;          (lambda (poly)
-;;            (if (> (length (polygon-points poly)) 3)
-;;                (begin
-;;                  (polygon-points-set!
-;;                   poly
-;;                   (cdr (polygon-points poly))))))
-;;          .001)
-        (make-mutator 'move-point-minor
-         (lambda (poly)
-           (let* ((points (list->vector (polygon-points poly)))
-                  (idx (random-integer (vector-length points))))
-             (vector-set! points idx
-                          (mutate-point (vector-ref points idx)))
-             (polygon-points-set! poly (vector->list points))))
-         .1)
-        (make-mutator 'change-red
-         (lambda (poly)
-           (polygon-red-set! poly (random-real-in-range min-red max-red)))
-         .001)
-        (make-mutator 'change-red-minor
-         (lambda (poly)
-           (polygon-red-set! poly (mutate-real (polygon-red poly)
-                                               min-red
-                                               max-red)))
-         .05)
-        (make-mutator 'change-green
-         (lambda (poly)
-           (polygon-green-set! poly (random-real-in-range min-green max-green)))
-         .001)
-        (make-mutator 'change-green-minor
-         (lambda (poly)
-           (polygon-green-set! poly (mutate-real (polygon-green poly)
-                                                 min-green
-                                                 max-green)))
-         .05)
-        (make-mutator 'change-blue
-         (lambda (poly)
-           (polygon-blue-set! poly (random-real-in-range min-blue max-blue)))
-         .001)
-        (make-mutator 'change-blue-minor
-         (lambda (poly)
-           (polygon-blue-set! poly (mutate-real (polygon-blue poly)
-                                                min-blue
-                                                max-blue)))
-         .05)
-        (make-mutator 'change-alpha
-         (lambda (poly)
-           (polygon-alpha-set! poly (+ (* (random-real) .7) .1)))
-         .001)
-        (make-mutator 'change-alpha-minor
-         (lambda (poly)
-           (polygon-alpha-set! poly
-                               (mutate-real
-                                (polygon-alpha poly) 0. 1.)))
-         .05)))
-
-(define genotype-mutators
-  (list (make-mutator 'remove-poly
-         (lambda (gt)
-           (if (not (null? (genotype-data gt)))
-               (genotype-data-set!
-                gt
-                (let loop ((acc '())
-                           (tail (genotype-data gt))
-                           (i 0)
-                           (rnd (random-integer (length (genotype-data gt)))))
-                  (if (null? tail)
-                      (reverse acc)
-                      (if (= i rnd)
-                          (loop acc (cdr tail) (+ i 1) rnd)
-                          (loop (cons (car tail) acc)
-                                (cdr tail)
-                                (+ i 1)
-                                rnd)))))))
-         .05)
-        (make-mutator 'add-poly
-         (lambda (gt)
-           (genotype-data-set!
-            gt
-            (cons (random-polygon)
-                  (genotype-data gt))))
-         .7)))
+;; This is the crux of the algorithm. All of the actual mutation
+;; operators are defined in the settings file (settings.scm). We set
+;; up a harness for automatically running types mutators:
+;; polygon, geometry, and genotype mutators.
+;;
+;; Polygon mutators are run across all polygons contained in a
+;; genotype, and will mutate individual attributes of each polygon
+;; according to the mutation rates.
+;;
+;; Geometry mutators are run on a single genotype and change various
+;; parts of the a genotype's solution, such as adding/removing
+;; polygons.
+;;
+;; Genotype mutators run both polygon and geometry mutators on a
+;; single genotype.
+;;
+;; The settings file defines the two former mutator sets in the variables
+;; `poly-mutators' and `geo-mutators'.
 
 (define (run-mutators lst thing)
   (let loop ((tail lst))
     (if (not (null? tail))
-        (let ((m (car tail)))
-          (if (< (random-real) (mutator-probability m))
+        (let ((mutator (car tail))
+              (prob (cadr tail)))
+          (if (< (random-real) prob)
               (begin
                 ;; (display (mutator-name m)) (newline)
-                ((mutator-func m) thing)))
-          (loop (cdr tail))))))
+                (mutator thing)))
+          (loop (cddr tail))))))
 
 (define (mutate-polygon! polygon)
   (run-mutators poly-mutators polygon))
@@ -401,8 +274,12 @@
    gt
    (polygons-mutate-many (genotype-data gt))))
 
+(define (mutate-geometry! gt)
+  (run-mutators geo-mutators gt))
+
 (define (mutate-genotype! gt)
-  (run-mutators genotype-mutators gt))
+  (mutate-polygons! gt)
+  (mutate-geometry! gt))
 
 (define (polygons-mutate-many polys)
   (let loop ((acc '())
@@ -420,6 +297,7 @@
                     acc)
               (cdr data)))))
 
+;; Unused
 (define (polygon-mutate-one polys)
   (let* ((polys (list->vector polys))
          (idx (random-integer (vector-length polys)))

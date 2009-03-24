@@ -11,33 +11,33 @@
 
 ;; Required modules
 
-(include "ffi/util.scm")
-;; (load (resource lib-path "ffi/gl/gl"))
-;; (load (resource lib-path "ffi/gl/glu"))
-;; (load (resource lib-path "ffi/ffi"))
-;; (load (resource lib-path "ffi/freeimage"))
-;; (load (resource lib-path "util/sort.scm"))
-;; (load (resource lib-path "util/srfi-1.scm"))
-;; (load (resource lib-path "util/srfi-13.scm"))
-;; (load (resource lib-path "settings"))
-;; (load (resource lib-path "images"))
-;; (load (resource lib-path "vectors"))
-;; (load (resource lib-path "genetic"))
-;; (load (resource lib-path "util/statprof/statprof"))
-;; (load (resource lib-path "geometry"))
-(load (resource lib-path "ffi/gl/gl"))
-(load (resource lib-path "ffi/gl/glu"))
-(load (resource lib-path "ffi/ffi"))
-(load (resource lib-path "ffi/freeimage"))
-(include "util/sort.scm")
-(include "util/srfi-1.scm")
-(include "util/srfi-13.scm")
-(include "settings.scm")
-(include "images.scm")
-(include "vectors.scm")
-(include "genetic.scm")
-(include "geometry.scm")
-(include "util/statprof/statprof.scm")
+(define-macro (eval-for-macros expr)
+  (eval expr))
+
+(eval-for-macros (define inline? #f))
+
+(define-macro (require-macros name)
+  `(include ,name))
+
+(define-macro (require name)
+  (if inline?
+      `(include ,name)
+      `(load (resource lib-path ,name))))
+
+(require-macros "ffi/util.scm")
+(require "ffi/gl/gl")
+(require "ffi/gl/glu")
+(require "ffi/ffi")
+(require "ffi/freeimage")
+(require "util/sort.scm")
+(require "util/srfi-1.scm")
+(require "util/srfi-13.scm")
+(require "fitness-ffi")
+(require "images")
+(require "vectors")
+(require "genetic")
+(require "geometry")
+(require "settings")
 
 ;; Utility
 
@@ -99,17 +99,20 @@
   (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
   (glDisable GL_CULL_FACE)
 
-  (set! source-image (gl-scale-image-to-window source-image))
-  (optimize-settings source-image))
+  (set! source-image (gl-scale-image-to-window (image-blur source-image)))
+  (configure source-image))
 
 (define i 0)
 (define average 0)
 
 (define (run-frame)
   (let ((start (real-time)))
-    (glClearColor 1. 1. 1. 1.)
+    (glClearColor (vec3-x initial-color)
+                  (vec3-y initial-color)
+                  (vec3-z initial-color)
+                  1.)
     (glLoadIdentity)
-  
+
     ;; Run all the genotypes
     (population-run! population source-image)
 
@@ -122,12 +125,12 @@
       (render-genotype best))
 
     ;; Evolve it another time
-    (set! population (population-evolve-three population))
+    (set! population (population-evolve population))
 
     (let ((timed (- (real-time) start)))
       (set! average (/ (+ (* i average) timed)
                        (+ i 1)))
       (set! i (+ i 1))
-      ;; (show "time: " timed "s, ")
-;;       (show "avg: " average "s\n")
+      ;;(show "time: " timed "s, ")
+      ;;(show "avg: " average "s\n")
       )))

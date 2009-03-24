@@ -8,7 +8,7 @@
 ;;;; Control is immediately passed to the Cocoa world.
 ;;;;
 
-;; Define the entry point (see entry-end.scm)
+;; Define the entry point
 (c-declare "#include \"cocoa.h\"")
 
 (define (gambit-entry)

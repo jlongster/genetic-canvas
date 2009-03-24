@@ -24,19 +24,40 @@
                 (point-equal? (car tail1)
                               (car tail2)))))))
 
+(define (random-points)
+  (let ((origin (random-point))
+        (num-points 3))
+    (unfold (lambda (i) (>= i num-points))
+            (lambda (i)
+              (vec2-add
+               origin
+               (make-vec2 (- (random-integer 100) 50)
+                          (- (random-integer 100) 50))))
+            (lambda (i) (+ i 1))
+            0)))
+
+;; (define (random-points)
+;;   (let ((origin (random-point)))
+;;     (let loop ((success #f))
+;;       (or success
+;;           (let* ((num-points (random-real-in-range 3 6))
+;;                  (points (unfold (lambda (i) (>= i num-points))
+;;                                  (lambda (i)
+;;                                    (vec2-add
+;;                                     origin
+;;                                     (make-vec2 (- (random-integer 150) 75)
+;;                                                (- (random-integer 150) 75))))
+;;                                  (lambda (i) (+ i 1))
+;;                                  0)))
+;;             (loop (triangulate points)))))))
+
 (define (random-polygon)
-  (let ((origin (random-point)))
-    (make-polygon
-     (unfold (lambda (i) (>= i 3))
-             (lambda (i) (vec2-add origin
-                                   (make-vec2 (- (random-integer 30) 15)
-                                              (- (random-integer 30) 15))))
-             (lambda (i) (+ i 1))
-             0)
-     (random-real)
-     (random-real)
-     (random-real)
-     (* (random-real) .6))))
+  (make-polygon
+   (random-points)
+   (random-real)
+   (random-real)
+   (random-real)
+   (* (random-real) .6)))
 
 (define (render-polygon poly)
   (glBegin GL_POLYGON)
@@ -50,6 +71,7 @@
           (glVertex2f (vec2-x point) (vec2-y point))
           (loop (cdr tail)))))
   (glEnd))
+
 
 ;; Point
 

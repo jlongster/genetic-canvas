@@ -1,16 +1,12 @@
 
 (c-declare "#include \"triangulate.c\"")
-
-(c-define-type c-vec2 (struct "vec2"))
-(c-define-type c-vec2* (pointer c-vec2))
-(c-define-type c-vec2-vector (struct "vec2_vector"))
-(c-define-type c-vec2-vector* (pointer c-vec2-vector))
+(include "triangulate-ffi#.scm")
 
 (define c-vec2-vector-data
-  (c-lambda (c-vec2-vector*) c-vec2* "___result_voidstar = ___arg1->data;"))
+  (c-lambda (c-vec2-vector) c-vec2* "___result_voidstar = ___arg1.data;"))
 
 (define c-vec2-vector-length
-  (c-lambda (c-vec2-vector*) int "___result = ___arg1->length;"))
+  (c-lambda (c-vec2-vector) int "___result = ___arg1.length;"))
 
 (define make-c-vec2
   (c-lambda (float float) c-vec2* #<<end-c-code
@@ -41,7 +37,7 @@ end-c-code
 
 (define c-vec2*-ref
   (c-lambda (c-vec2* int) c-vec2*
-            "___result_voidstar = (___arg1+(___arg2*sizeof(vec2)));"))
+            "___result_voidstar = ___arg1+___arg2;"))
 
 (define (vec2-list->c-vec2-vector data)
   (let* ((count (length data))
@@ -69,12 +65,12 @@ end-c-code
             0)))
 
 (define %%triangulate
-  (c-lambda (c-vec2* int) c-vec2-vector* "triangulate"))
+  (c-lambda (c-vec2* int) c-vec2-vector "triangulate"))
 
 (define (triangulate points)
   (let* ((c-points (vec2-list->c-vec2-vector points))
-         (data (%%triangulate c-points (length points)))
-         (result (c-vec2-vector->vec2-list data)))
+         (data (%%triangulate c-points (length points))))
     (free c-points)
-    (free data)
-    result))
+    (if (> (c-vec2-vector-length data) 0)
+        (c-vec2-vector->vec2-list data)
+        #f)))

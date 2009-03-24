@@ -24,7 +24,7 @@
         `(let ,(map proc bindings) ,@body))))
 
 (define-macro (check-arg pred val caller)
-  `(if (,pred ,val) ,val (snow-error "Bad Argument" ,val ,pred ,caller)))
+  `(if (,pred ,val) ,val (error "Bad Argument" ,val ,pred ,caller)))
 
 ; Tony Sidaway: This was originally written as "optional" and it clashes with a 
 ; form built into Chicken scheme so I've changed this internal procedure to optional*

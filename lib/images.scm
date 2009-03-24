@@ -3,7 +3,7 @@
          (standard-bindings)
          (extended-bindings))
 
-;; (include "ffi/util.scm")
+(include "ffi/util.scm")
 
 ;; Images
 
@@ -116,17 +116,115 @@
     (glEnd)
     (glBindTexture GL_TEXTURE_2D 0)))
 
+(define (bytes-per-pixel format)
+  (cond
+   ((eq? format FORMAT_LUMINANCE) 1)
+   ((eq? format FORMAT_RGB) 3)
+   ((eq? format FORMAT_RGBA) 4)
+   (else (error "Unsupported format"))))
+
+(define (image-to-greyscale image)
+  (make-image (image-width image)
+              (image-height image)
+              FORMAT_LUMINANCE
+              (rgb->greyscale (image-bytes)
+                              (* (image-width image)
+                                 (image-height image)
+                                 (bytes-per-pixel (image-format image))))))
+
+(define (image-blur img)
+  (cond
+   ((eq? (image-format img) FORMAT_LUMINANCE)
+    (gaussian-blur-filter (image-bytes img)
+                          (image-width img)
+                          (image-height img)))
+   ((eq? (image-format img) FORMAT_RGB)
+    (%%color-image-blur img))
+   (else (error "Unsupported image format"))))
+
+(define (strip-bytes img offset)
+  (let* ((len (* (image-width img)
+                 (image-height img)))
+         (bytes (image-bytes img))
+         (out (alloc-u8 len)))
+    (let loop ((i 0))
+      (if (< i len)
+          (begin
+            (u8*-set! out i (u8*-ref bytes (+ (* i 3) offset)))
+            (loop (+ i 1)))
+          out))))
+
+(define (strip-red-bytes img)
+  (strip-bytes img 0))
+
+(define (strip-green-bytes img)
+  (strip-bytes img 1))
+
+(define (strip-blue-bytes img)
+  (strip-bytes img 2))
+
+(define (weave-rgb-bytes r g b len)
+  (let ((out (alloc-u8 (* len 3))))
+    (let loop ((i 0))
+      (if (< i len)
+          (begin
+            (u8*-set! out (* i 3) (u8*-ref r i))
+            (u8*-set! out (+ (* i 3) 1) (u8*-ref g i))
+            (u8*-set! out (+ (* i 3) 2) (u8*-ref b i))
+            (loop (+ i 1)))
+          out))))
+
+(define (%%color-image-blur img)
+  (let* ((width (image-width img))
+         (height (image-height img))
+         (red (strip-red-bytes img))
+         (green (strip-green-bytes img))
+         (blue (strip-blue-bytes img))
+         (red-blurred (gaussian-blur-filter red width height))
+         (green-blurred (gaussian-blur-filter green width height))
+         (blue-blurred (gaussian-blur-filter blue width height)))
+    (let ((res (make-image (image-width img)
+                           (image-height img)
+                           FORMAT_RGB
+                           (weave-rgb-bytes red-blurred
+                                            green-blurred
+                                            blue-blurred
+                                            (* width height)))))
+      (free red)
+      (free green)
+      (free blue)
+      (free red-blurred)
+      (free green-blurred)
+      (free blue-blurred)
+      res)))
+
+
 
 ;; Analzying an image, edge detection, etc.
 
+(define (gaussian-distribution x y rho)
+  (* (/ 1. (sqrt (* 2. 3.141592654 rho rho)))
+     (exp (/ (- (+ (* x x)
+                   (* y y)))
+             (* 2 rho rho)))))
+
 (define gaussian-kernel-edge-length 5)
+(define gaussian-rho 1.2)
 (define gaussian-kernel
-  (vector
-   1 4  7  4  1
-   4 16 26 16 4
-   7 26 41 26 7
-   4 16 26 16 4
-   1 4  7  4  1))
+  (let* ((len (* gaussian-kernel-edge-length
+                 gaussian-kernel-edge-length))
+         (offset (/ (- gaussian-kernel-edge-length 1) 2))
+         (out (make-vector len)))
+    (let loop ((i 0))
+      (if (< i len)
+          (let ((x (remainder i gaussian-kernel-edge-length))
+                (y (quotient i gaussian-kernel-edge-length)))
+            (vector-set! out i
+                         (gaussian-distribution (- x offset)
+                                                (- y offset)
+                                                gaussian-rho))
+            (loop (+ i 1)))
+          out))))
 
 (define edge-kernel-edge-length 5)
 (define edge-kernel
@@ -136,6 +234,17 @@
    -1  0 16  0 -1
    -1  0  0  0 -1
    -1 -1 -1 -1 -1))
+
+(define (print-kernel kernel edge-length)
+  (let ((len (* edge-length edge-length)))
+    (let loop ((i 0))
+      (if (< i len)
+          (let ((x (remainder i edge-length))
+                (y (quotient i edge-length)))
+            (if (= x 0.)
+                (newline))
+            (write (vector-ref kernel i)) (display " ")
+            (loop (+ i 1)))))))
 
 (define (rgb->greyscale bytes length)
   (let ((output (alloc-u8 length)))
@@ -205,7 +314,7 @@
   gaussian-kernel
   gaussian-kernel-edge-length
   (lambda (value)
-    (real->byte (saturate (/ value 273.)))))
+    (real->byte (saturate (/ value 2.5)))))
 
 (define-filter edge-filter
   edge-kernel

@@ -1,19 +1,11 @@
+// "Efficient Polygon Triangulation"
+// 
+// I stole this code from a Flipcode article:
+// http://www.flipcode.com/archives/Efficient_Polygon_Triangulation.shtml
+// It was originally written in C++ and I ported it to C.
+// - James
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
-struct vec2 {
-    float x;
-    float y;
-};
-typedef struct vec2 vec2;
-
-struct vec2_vector {
-    vec2* data;
-    int length;
-};
-typedef struct vec2_vector vec2_vector;
+#include "triangulate.h"
 
 static const float EPSILON=0.0000000001f;
 
@@ -78,18 +70,28 @@ int snip(vec2 *contour, int u, int v, int w, int n, int *V) {
   return 1;
 }
 
-vec2_vector out_vector;
-vec2 out_result[500];
+// This is an awful, horrible hack which paints a sludgy black mark
+// on my history of programming.  We know how we will be calling this
+// library, so at least for now, for optimizations, hold the results
+// of the triangulation in these global variables which are passed
+// around in scheme BUT NEVER KEPT.
+/* vec2_vector out_vector; */
+/* vec2 out_result[500]; */
 
-vec2_vector* triangulate(vec2 *contour, int len) {
+vec2_vector triangulate(vec2 *contour, int len) {
     int n = len;
     int v, m;
+
+    vec2_vector out_vector;
+    out_vector.data = NULL;
+    out_vector.length = 0;
     
-    if(n < 3) return NULL;
+    if(n < 3) return out_vector;
     
     int V[n];
     int idx = 0;
-  
+    vec2 *result = calloc(500, sizeof(vec2));
+    
     /* we want a counter-clockwise polygon in V */
 
     if ( 0.0f < area(contour, len) )
@@ -104,7 +106,7 @@ vec2_vector* triangulate(vec2 *contour, int len) {
 
     for(m=0, v=nv-1; nv>2; ) {        
         if (0 >= (count--)) {
-            return NULL;
+            return out_vector;
         }
 
         /* three consecutive vertices in current polygon, <u,v,w> */
@@ -120,11 +122,11 @@ vec2_vector* triangulate(vec2 *contour, int len) {
 
             /* output Triangle */
             if(idx >= 500) {
-                return NULL;
+                return out_vector;
             }
-            out_result[idx++] = contour[a];
-            out_result[idx++] = contour[b];
-            out_result[idx++] = contour[c];
+            result[idx++] = contour[a];
+            result[idx++] = contour[b];
+            result[idx++] = contour[c];
 
             m++;
 
@@ -136,47 +138,7 @@ vec2_vector* triangulate(vec2 *contour, int len) {
         }
     }
 
-    out_vector.data = out_result;
+    out_vector.data = result;
     out_vector.length = idx;
-/*     out_result->data = calloc(idx, sizeof(vec2)); */
-/*     memcpy((void*)out_result->data, (void*)result, idx*sizeof(vec2)); */
-/*     out_result->length = idx; */
-    return &out_vector;
-}
-
-int main(int argc, char** argv) {
-    vec2 vecs[15];
-    vecs[0].x = 0;
-    vecs[0].y = 0;
-    
-    vecs[1].x = 0;
-    vecs[1].y = 5;
-    
-    vecs[2].x = 5;
-    vecs[2].y = 9;
-    
-    vecs[3].x = -45;
-    vecs[3].y = 0;
-
-    vecs[4].x = 25;
-    vecs[4].y = -5;
-
-    vecs[5].x = 2;
-    vecs[5].y = 33;
-
-    vecs[6].x = -5;
-    vecs[6].y = 30;
-
-    int i;
-    vec2_vector *data;
-    if(!(data = triangulate(vecs, 7))) {
-        for(i=0; i<data->length; i++) {
-            printf("(%f, %f)\n", data->data[i].x, data->data[i].y);
-        }
-    }
-    else {
-        printf("failed\n");
-    }
-
-    return 0;
+    return out_vector;
 }
