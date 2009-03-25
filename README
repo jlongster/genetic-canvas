@@ -6,7 +6,8 @@ To build, simply type `make'.
 
 To run, simple type `./main'.
 
-Optionally, you can run it as a bundle by typing `open Main.app'.
+You must be using OS X to use this program. You can also run it as a
+bundle by typing `open Main.app'.
 
 -----------------------------
 
