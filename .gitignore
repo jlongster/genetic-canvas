@@ -4,8 +4,10 @@ engine.c
 Main.app
 main
 *.o*
-/docs/*.aux
-/docs/*.log
-/docs/*.pdf
-/docs/*.scm
-/docs/*.tex
+/tests/*.aux
+/tests/*.log
+/tests/*.pdf
+/tests/*.tex
+/tests/main.scm
+/tests/engine/*.tex
+/tests/images/*.tex

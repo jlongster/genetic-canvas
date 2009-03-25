@@ -7,8 +7,8 @@
 \date{March 12, 2009}
 \maketitle
 
-Provides functionality for loading images, processing them and
-uploading them to OpenGL.
+Provides functionality for loading images, uploading them to OpenGL,
+and applying various filters on them.
 
 (include "../../lib/resources.scm")
 (load (resource lib-path "ffi/gl/gl"))
@@ -37,7 +37,8 @@ These define all of the entry points into scheme world used by Cocoa.
 
 \section{Engine}
 
-Now we define our simple engine.
+Now we define our simple engine.  We're trying to test our image
+filters, so lets show a colored image blurred with a gaussian filter.
 
 (define current-width (make-parameter 0))
 (define current-height (make-parameter 0))
@@ -48,22 +49,9 @@ Now we define our simple engine.
   (current-height (exact->inexact height))
   (freeimage-initialize #f)
   
-  (set! texture (make-image "resources/monalisa_small.jpg"))
-;;   (set! texture (make-image "docs/images/test.jpg"))
-  (image-bytes-set! texture
-                    (edge-filter
-                     (gaussian-blur-filter
-                      (rgb->greyscale (image-bytes texture)
-                                      (* (image-width texture)
-                                         (image-height texture)))
-                      (image-width texture)
-                      (image-height texture))
-                     (image-width texture)
-                     (image-height texture)))
-  (make-edges-white! (image-bytes texture)
-                     (image-width texture)
-                     (image-height texture))
-  (image-format-set! texture FORMAT_LUMINANCE))
+  (set! texture
+        (image-blur
+         (load-image (resource "tests/images/test.jpg")))))
 
 (define (init-opengl)
   (glMatrixMode GL_PROJECTION)
@@ -86,30 +74,6 @@ Now we define our simple engine.
 (define (run-frame)
   (glClearColor 0. 1. 0. 1.)
   (glClear GL_COLOR_BUFFER_BIT)
+  (image-render texture (current-width) (current-height)))
 
-  (glBindTexture GL_TEXTURE_2D (image-gl-texture-id texture))
-  (glBegin GL_QUADS)
-  (begin
-    (glTexCoord2d 0. 1.)
-    (glVertex2f 0. 0.))
-  (begin
-    (glTexCoord2d 0. 0.)
-    (glVertex2f 0. (current-height)))
-  (begin
-    (glTexCoord2d 1. 0.)
-    (glVertex2f (current-width)
-                (current-height)))
-  (begin
-    (glTexCoord2d 1. 1.)
-    (glVertex2f (current-width) 0.))
-  (glEnd)
-  (glBindTexture GL_TEXTURE_2D 0))
-  
-\section{Filtering}
-
-\subsection{(rgb->greyscale bytes length)}
-
-Convertes RGB data to greyscale. bytes should be a u8 buffer allocated
-from C (usually the result of one of the image loading procedures).
-
-
+\end{document}

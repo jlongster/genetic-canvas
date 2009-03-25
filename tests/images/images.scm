@@ -27,22 +27,9 @@
   (current-height (exact->inexact height))
   (freeimage-initialize #f)
   
-  (set! texture (make-image "resources/monalisa_small.jpg"))
-
-  (image-bytes-set! texture
-                    (edge-filter
-                     (gaussian-blur-filter
-                      (rgb->greyscale (image-bytes texture)
-                                      (* (image-width texture)
-                                         (image-height texture)))
-                      (image-width texture)
-                      (image-height texture))
-                     (image-width texture)
-                     (image-height texture)))
-  (make-edges-white! (image-bytes texture)
-                     (image-width texture)
-                     (image-height texture))
-  (image-format-set! texture FORMAT_LUMINANCE))
+  (set! texture
+        (image-blur
+         (load-image (resource "tests/images/test.jpg")))))
 (define (init-opengl)
   (glMatrixMode GL_PROJECTION)
   (glLoadIdentity)
@@ -62,21 +49,4 @@
 (define (run-frame)
   (glClearColor 0. 1. 0. 1.)
   (glClear GL_COLOR_BUFFER_BIT)
-
-  (glBindTexture GL_TEXTURE_2D (image-gl-texture-id texture))
-  (glBegin GL_QUADS)
-  (begin
-    (glTexCoord2d 0. 1.)
-    (glVertex2f 0. 0.))
-  (begin
-    (glTexCoord2d 0. 0.)
-    (glVertex2f 0. (current-height)))
-  (begin
-    (glTexCoord2d 1. 0.)
-    (glVertex2f (current-width)
-                (current-height)))
-  (begin
-    (glTexCoord2d 1. 1.)
-    (glVertex2f (current-width) 0.))
-  (glEnd)
-  (glBindTexture GL_TEXTURE_2D 0))
+  (image-render texture (current-width) (current-height)))

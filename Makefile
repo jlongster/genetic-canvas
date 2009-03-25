@@ -47,31 +47,31 @@ lib/ffi/freeimage.o1: lib/ffi/freeimage.scm
 
 lib/ffi/triangulate-ffi.o1: lib/ffi/triangulate-ffi.scm
 	rm -f lib/ffi/triangulate-ffi.o1
-	gsc lib/ffi/triangulate-ffi.scm
+	gsc -debug lib/ffi/triangulate-ffi.scm
 
 lib/engine.o1: lib/engine.scm
 	rm -f lib/engine.o1
-	gsc lib/engine.scm
+	gsc -debug lib/engine.scm
 
 lib/genetic.o1: lib/genetic.scm
 	rm -f lib/genetic.o1
-	gsc lib/genetic.scm
+	gsc -debug lib/genetic.scm
 
 lib/fitness-ffi.o1: lib/fitness-ffi.scm
 	rm -f lib/fitness-ffi.o1
-	gsc lib/fitness-ffi.scm
+	gsc -debug lib/fitness-ffi.scm
 
 lib/geometry.o1: lib/geometry.scm
 	rm -f lib/geometry.o1
-	gsc lib/geometry.scm
+	gsc -debug lib/geometry.scm
 
 lib/images.o1: lib/images.scm
 	rm -f lib/images.o1
-	gsc lib/images.scm
+	gsc -debug -debug lib/images.scm
 
 lib/settings.o1: lib/settings.scm
 	rm -f lib/settings.o1
-	gsc lib/settings.scm
+	gsc -debug lib/settings.scm
 
 objects: lib/ffi/ffi.o1 \
 	lib/ffi/gl/gl.o1 \
@@ -81,6 +81,7 @@ objects: lib/ffi/ffi.o1 \
 	lib/genetic.o1 \
 	lib/geometry.o1 \
 	lib/images.o1 \
+	lib/fitness-ffi.o1 \
 	lib/settings.o1
 
 clean-objects:
@@ -89,10 +90,7 @@ clean-objects:
 clean-lib-objects:
 	find . -iname '*.o1' -not -ipath '*/ffi/*' | xargs rm
 
-## For compiling as a bundled app
-# Main.app/Contents/Info.plist: Info.plist
-# 	mkdir -p Main.app/Contents
-# 	cp Info.plist Main.app/Contents/Info.plist
+## Create a Main.app so that we can also run it as a bundle app
 
 Main.app/Contents/Resources/main.nib: main.nib
 	mkdir -p Main.app/Contents/Resources
@@ -106,19 +104,21 @@ Main.app/Contents/MacOS/main: main
 Main.app: Main.app/Contents/MacOS/main \
 	  Main.app/Contents/Resources/main.nib
 
-## testing
-test: docs/main.sw
-	sweb -s docs/main.sw > docs/main.scm
+## Testing
+
+test: tests/main.sw
+	sweb -s tests/main.sw > tests/main.scm
 	gsi -e '(include "lib/util/tests.scm")' \
 		-e '(include "lib/resources.scm")' \
-		docs/main.scm
+		tests/main.scm
 
-test-engine: docs/engine/engine.sw
-	sweb -s docs/engine/engine.sw > docs/engine/engine.scm
-	gsc -c docs/engine/engine.scm
-	gsc -link -o docs/engine/engine_.c docs/engine/engine.c app/entry.c
-	gcc -o docs/engine/engine docs/engine/engine_.c \
-		docs/engine/engine.c app/entry.c \
+# Copied from `main' test target
+test-engine: tests/engine/engine.sw
+	sweb -s tests/engine/engine.sw > tests/engine/engine.scm
+	gsc -c tests/engine/engine.scm
+	gsc -link -o tests/engine/engine_.c tests/engine/engine.c app/entry.c
+	gcc -o tests/engine/engine tests/engine/engine_.c \
+		tests/engine/engine.c app/entry.c \
 		app/cocoa.m app/glview.m \
 		app/glwindow.m \
 		app/app.m \
@@ -126,16 +126,17 @@ test-engine: docs/engine/engine.sw
 		-framework Cocoa -framework OpenGL \
 		-lgambc \
 	 	-lIL \
-		-sectcreate __TEXT __info_plist docs/engine/Info.plist
-	docs/engine/engine
+		-sectcreate __TEXT __info_plist app/Info.plist
+	rm -rf tests/engine/main.nib && cp -r main.nib tests/engine
+	tests/engine/engine
 
-test-images: docs/images/images.sw
-	make lib/images.o1
-	sweb -s docs/images/images.sw > docs/images/images.scm
-	gsc -c docs/images/images.scm
-	gsc -link -o docs/images/images_.c docs/images/images.c app/entry.c
-	gcc -o docs/images/images docs/images/images_.c \
-		docs/images/images.c app/entry.c \
+# Copied from `main' test target
+test-images: tests/images/images.sw
+	sweb -s tests/images/images.sw > tests/images/images.scm
+	gsc -debug -c tests/images/images.scm
+	gsc -link -o tests/images/images_.c tests/images/images.c app/entry.c
+	gcc -o tests/images/images tests/images/images_.c \
+		tests/images/images.c app/entry.c \
 		app/cocoa.m app/glview.m \
 		app/glwindow.m \
 		app/app.m \
@@ -143,19 +144,26 @@ test-images: docs/images/images.sw
 		-framework Cocoa -framework OpenGL \
 		-lgambc \
 	 	-lIL \
-		-sectcreate __TEXT __info_plist docs/images/Info.plist
-	docs/images/images
+		-sectcreate __TEXT __info_plist app/Info.plist
+	rm -rf tests/images/main.nib && cp -r main.nib tests/images
+	tests/images/images
 
-test-triangulate: docs/triangulate.scm
-	rm -f docs/triangulate.o1
-	gsc docs/triangulate.scm
-	gsi docs/triangulate
+test-triangulate-ffi: tests/triangulate-ffi.scm
+	rm -f test/triangulate-ffi.o1
+	gsc tests/triangulate-ffi.scm
+	cd tests && gsi triangulate-ffi
 
-pdf: docs/main.sw docs/engine.sw
-	sweb -w docs/main.sw > docs/main.tex
-	pdflatex -output-directory=docs docs/main.tex
-	sweb -w docs/engine.sw > docs/engine.tex
-	pdflatex -output-directory=docs docs/engine.tex
+test-triangulate: tests/triangulate.c
+	cd tests && gcc -o triangulate triangulate.c
+	cd tests && ./triangulate
+
+pdf: tests/main.sw tests/engine/engine.sw tests/images/images.sw
+	sweb -w tests/main.sw > tests/main.tex
+	pdflatex -output-directory=tests tests/main.tex
+	sweb -w tests/engine/engine.sw > tests/engine/engine.tex
+	pdflatex -output-directory=tests tests/engine/engine.tex
+	sweb -w tests/images/images.sw > tests/images/images.tex
+	pdflatex -output-directory=tests tests/images/images.tex
 
 ## cleanup
 clean: clean-objects

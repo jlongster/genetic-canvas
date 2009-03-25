@@ -118,10 +118,9 @@
         (cdr pop)))
 
 (define (population-run! pop source-image)
-  (fold (lambda (el acc)
-          (genotype-fitness-set! el (run-genotype el source-image)))
-        #f
-        pop)
+  (for-each (lambda (el)
+              (genotype-fitness-set! el (run-genotype el source-image)))
+            pop)
   (population-normalize population))
 
 ;; Drives the evolution cycle, using elitist selection
@@ -129,8 +128,8 @@
 (define (population-evolve pop)
   (let* ((count (length pop))
          (lst (selection-elitist pop count)))
-    (let loop ((acc '())
-               (tail lst))
+    (let loop ((acc (list (car lst)))
+               (tail (cdr lst)))
       (if (null? tail)
           acc
           (let ((head (car tail)))

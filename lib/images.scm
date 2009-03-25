@@ -127,21 +127,27 @@
    ((eq? format FORMAT_RGBA) 4)
    (else (error "Unsupported format"))))
 
-(define (image-to-greyscale image)
+(define (image-greyscale image)
+  (if (not (eq? (image-format image) FORMAT_RGB))
+      (error ("Unsupported image format for image-greyscale")))
   (make-image (image-width image)
               (image-height image)
               FORMAT_LUMINANCE
-              (rgb->greyscale (image-bytes)
+              (rgb->greyscale (image-bytes image)
                               (* (image-width image)
                                  (image-height image)
-                                 (bytes-per-pixel (image-format image))))))
+                                 3))))
 
 (define (image-blur img)
   (cond
    ((eq? (image-format img) FORMAT_LUMINANCE)
-    (gaussian-blur-filter (image-bytes img)
-                          (image-width img)
-                          (image-height img)))
+    (make-image
+     (image-width img)
+     (image-height img)
+     FORMAT_LUMINANCE
+     (gaussian-blur-filter (image-bytes img)
+                           (image-width img)
+                           (image-height img)))) 
    ((eq? (image-format img) FORMAT_RGB)
     (%%color-image-blur img))
    (else (error "Unsupported image format"))))
@@ -340,3 +346,6 @@
 (define (real->byte f)
   (inexact->exact
    (floor (* (saturate f) 255.))))
+
+(define exact inexact->exact)
+(define real exact->inexact)

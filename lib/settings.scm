@@ -17,7 +17,7 @@
 
 (define initial-num-polygons 0)
 (define initial-color (make-vec3 0. 0. 0.))
-(define source-image-file "resources/test2.jpg")
+(define source-image-file "resources/monalisa.jpg")
 
 (define min-red 0.)
 (define max-red 1.)

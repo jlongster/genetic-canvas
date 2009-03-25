@@ -7,6 +7,12 @@
 \date{March 7, 2009}
 \maketitle
 
+These documents are meant to provide a place for testing various
+aspects of the system. Currently, these documents are pretty sloppy
+and sorely lacking in code coverage. I have yet to add tests and
+documentation for the major part of the system, but that will come
+with time.
+
 First we load up the required modules.  We will be testing the main engine
 module.
 
@@ -22,7 +28,8 @@ An image type is defined with the following fields:
 \begin{itemize}
 \item width
 \item height
-\item rgb-bytes
+\item bytes
+\item format
 \item gl-texture-id
 \end{itemize}
 
@@ -34,15 +41,12 @@ used to load images. Only JPG support has been implemented.
 (define test-image #f)
 
 (define-test load-image
-  (set! test-image (load-image "docs/test.jpg"))
+  (set! test-image (load-image "tests/test.jpg"))
   (assert-equal (image-width test-image) 100)
   (assert-equal (image-height test-image) 100)
-  (assert-equal (char->integer
-                 (u8*-ref (image-bytes test-image) 0)) 25)
-  (assert-equal (char->integer
-                 (u8*-ref (image-bytes test-image) 1)) 51)
-  (assert-equal (char->integer
-                 (u8*-ref (image-bytes test-image) 2)) 76))
+  (assert-equal (u8*-ref (image-bytes test-image) 0) 25)
+  (assert-equal (u8*-ref (image-bytes test-image) 1) 51)
+  (assert-equal (u8*-ref (image-bytes test-image) 2) 76))
 
 \subsection{(image-opengl-upload! image)}
 
@@ -66,7 +70,18 @@ position.  The bottom-left corner defines (0,0).
 
 \section{Genetic Algorithm (lib/genetic.scm)}
 
-\subsection{(selection-rws pop f)}
+\subsection{Selection}
+
+Elitist selection is the ONLY type of selection currently being used
+by the system.
+
+\subsubsection{(selection-elitist pop n)}
+
+Using elitist selection, select \begin{math}n\end{math} number of
+genotypes from the population \textit{pop}.  Elitist selection takes
+the single best genotype and copies it.
+
+\subsubsection{(selection-rws pop f)}
 
 Implements roulette wheel selection. Given a number
 \begin{math}f\end{math}, where \begin{math}f\end{math} is between 0
@@ -84,11 +99,11 @@ fitness.
     (assert-equal (selection-rws pop 70) (cadr pop))
     (assert-equal (selection-rws pop 76) (caddr pop))))
 
-\subsection{(selection-sus pop f)}
+\subsubsection{(selection-sus pop f)}
 
 Implements stochastic universal selection. This builds on top of
 roulette wheel selection: instead of passing a random value to
-\ref{selection-rws}, select \begin{math}n\end{math} genomes at once,
+selection-rws, select \begin{math}n\end{math} genomes at once,
 dividing the fitness space evenly and selecting the genomes at those
 points. Typically, you would want to select a whole new population at
 once, which means the spread of your fitness scores controls the
@@ -104,7 +119,11 @@ selection behaviour (higher spread, more variance, and vice versa).
       (assert-equal (vector-ref vec-pop 10) (cadr pop))
       (assert-equal (vector-ref vec-pop 15) (caddr pop)))))
 
-\subsection{(genotype-crossover gt1 gt2 \#!optional rate-or-pt)}
+\subsection{Crossover}
+
+\subsubsection{(genotype-crossover gt1 gt2 \#!optional rate-or-pt)}
+
+Currenty the genetic algorithm does NOT use any crossover procedures.
 
 Implements the crossover operator. It simple takes two genotypes,
 randomly selects a point in the genotype with the longest solution,
@@ -126,74 +145,74 @@ will generate this randomly.
       (assert-equal (genotype-data new-gt1) '(1 2 3 4 5 13))
       (assert-equal (genotype-data new-gt2) '(6 7 8 9 10 11 12)))))
 
-\subsection{(mutate-polygon! polygon)}
 
-Mutates a polygon. This selects one ``mutator'' from many and executes
-it. Each mutator modifies some aspect of the polygon, such as adding
-points, moving points, changing the red color, etc.
+\subsection{Mutation}
 
-\subsection{(genotype-mutate-many gt \#!optional rate)}
-      
-Implements a mutation operator which mutates many of the solution's polygons.
-The polygon mutation rate is .1, or 1/10th of the polygons are mutated.
+Mutation is the key part of this genetic algorithm. There are several
+ways to mutate a solution, which is a list of polygons, each polygon
+having many specific attributes. We can add polygons, remove them, and
+reorder them, as well as mutating each polygon's color and geometric
+makeup. In order to find a solution and converge, we also need to
+implement all of of these with different scales (i.e. it could either
+move the point a little or a lot).
 
-This checks the genotype mutation rate automatically.  The default genotype
-mutation rate is .5.  The 2nd parameter overrides this.
+This operation happens for all but one genotype in the population.
+This means that the best genotype (since we only use elitist
+selection) is guaranteed to be copied over in pristine condition at
+least once. Otherwise, when a genotype is mutated, it calls
+\textit{mutate-genotype!} which mutates all aspects of the solution;
+an important note is that this means it runs mutation operators over
+every single polygon in its solution.
 
-\subsection{(genotype-mutate-one gt \#!optional rate)}
+Other evolution strategies are possible, such as specializing some
+genotypes to only be mutated with \textit{mutate-polygons!} or
+\textit{mutate-geometry!} which would favor certain types of traversing.
 
-Implements a mutation operater which mutates only one of the solution's polygons.
+\subsubsection{(mutate-genotype! gt)}
 
-This checks the genotype mutation rate automatically.  The default genotype
-mutation rate is .5.  The 2nd parameter overrides this.
+Runs both \textit{mutate-polygons!} and \textit{mutate-geometry!} on
+the genotype, meaning it possibly mutates all aspects of the solution.
+
+\subsubsection{(mutate-polygons! gt)}
+
+Only changes properties of each polygon. This runs through all of the
+mutators and tests to see if each one should be run. Either zero or
+many mutators could run each time. Each mutator modifies some aspect
+of the polygon, such as adding points, moving points, changing the red
+color, etc.
+
+\subsubsection{(mutate-geometry! gt)}
+
+Only changes properties of the genotype, meaning it only adds,
+removes, or reorders polygons. These mutations all happen according to
+some set mutation rate, and either zero or many could happen at once.
+
+\section{Settings (lib/settings.scm)}
+
+The most important place in the code is in the settings file. All
+operators and settings which determine the health and accuracy of the
+genetic algorithm are placed here. The fundamental workflow of the
+genetic algorith (when the mutators are run, the selection operators,
+etc.) are not included here, but rather mutation rates and operators,
+color settings and more.
+
+Part of the settings file is also a few configuration procedures which
+have a chance to optimize the inital solution. This is neat because it
+can make it easier for the genetic algorithm to find a solution
+faster.  Two things which are currently done are:
+
+\begin{itemize}
+\item Optimizing the initial color: the image is scanned through and
+  the most frequent red, green, and blue values are found and set as
+  the inital color of the canvas
+\item Optimizing the available color ranges: the image is scanned
+  through again and the highest and lowest RGB values are found and
+  set as the available color ranges for polygons.
+\end{itemize}
 
 \section{Vectors (lib/vectors.scm)}
 
 Basic functionality for 2d and 3d vectors.
-
-TODO:  add vector unit tests
-
-\section{Engine (lib/engine.scm)}
-
-Fires up the real engine.
-
-\section{Triangulation}
-
-\subsection{(triangulate c-vec2* int)}
-
-(load "lib/util/triangulate-ffi")
-
-(define-test triangulate
-  (let ((buf (alloc-c-vec2 4)))
-    (c-vec2-x-set! (c-vec2*-ref buf 0) 8.)
-    (c-vec2-y-set! (c-vec2*-ref buf 0) 14.)
-    
-    (c-vec2-x-set! (c-vec2*-ref buf 1) -5.)
-    (c-vec2-y-set! (c-vec2*-ref buf 1) 24.)
-
-    (c-vec2-x-set! (c-vec2*-ref buf 2) 15.)
-    (c-vec2-y-set! (c-vec2*-ref buf 2) 7.)
-    
-    (c-vec2-x-set! (c-vec2*-ref buf 3) 6.)
-    (c-vec2-y-set! (c-vec2*-ref buf 3) -9.)
-
-    (let ((res (triangulate buf 9)))
-      (show (c-vec2-x (c-vec2*-ref res 0))
-            " "
-            (c-vec2-y (c-vec2*-ref res 0))
-            "\n")
-      (show (c-vec2-x (c-vec2*-ref res 1))
-            " "
-            (c-vec2-y (c-vec2*-ref res 1))
-            "\n")
-      (show (c-vec2-x (c-vec2*-ref res 2))
-            " "
-            (c-vec2-y (c-vec2*-ref res 2))
-            "\n")
-      (show (c-vec2-x (c-vec2*-ref res 3))
-            " "
-            (c-vec2-y (c-vec2*-ref res 3))
-            "\n"))))
 
 \section{Util}
 
@@ -214,6 +233,9 @@ Fires up the real engine.
                  (<= r 109.2)))))
 
 \section{Benchmarks}
+
+Average evolution step in the genetic algorithm, when compiled, takes
+about .054s. This means were able to evolve about 1111 times per 60 seconds.
     
 (shutdown-engine)
 

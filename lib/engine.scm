@@ -50,9 +50,6 @@
 (define profile-count 0)
 (define profile-average 0)
 
-(define exact inexact->exact)
-(define real exact->inexact)
-
 (define (display-gl-error)
   (display (gluErrorString (glGetError))))
 
@@ -83,9 +80,7 @@
   (set! population (make-population 3)))
 
 (define (shutdown-engine)
-  (freeimage-deinitialize)
-  (free-image source-image)
-  (free-image current-image))
+  (freeimage-deinitialize))
 
 (define (init-opengl)
   (glMatrixMode GL_PROJECTION)

@@ -1,5 +1,5 @@
 
-#include "../lib/util/triangulate.c"
+#include "../lib/ffi/triangulate.c"
 
 void test_triangulate() {
     printf("Testing triangulate... ");
@@ -26,11 +26,12 @@ void test_triangulate() {
     vecs[6].y = 30;
 
     int i;
-    vec2_vector *data;
-    if(!(data = triangulate(vecs, 7))) {
-        for(i=0; i<data->length; i++) {
-            printf("(%f, %f)\n", data->data[i].x, data->data[i].y);
+    vec2_vector data = triangulate(vecs, 7);
+    if(data.length > 0) {
+        for(i=0; i<data.length; i++) {
+            printf("(%f, %f)\n", data.data[i].x, data.data[i].y);
         }
+        printf("OK");
     }
     else {
         printf("failed\n");

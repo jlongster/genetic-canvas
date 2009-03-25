@@ -19,6 +19,7 @@ Load our required modules.
 (load (resource lib-path "images"))
 (load (resource lib-path "vectors"))
 (load (resource lib-path "genetic"))
+(load (resource lib-path "geometry"))
 
 \section{Entry Points}
 
@@ -45,13 +46,16 @@ this simple framework.
 (define current-width (make-parameter 0))
 (define current-height (make-parameter 0))
 
-(define gt #f)
+(define polys #f)
 
 (define (init-engine width height)
   (current-width (exact->inexact width))
   (current-height (exact->inexact height))
   
-  (set! gt (random-genotype)))
+  (set! polys (unfold (lambda (i) (>= i 10))
+                      (lambda (i) (random-polygon))
+                      (lambda (i) (+ i 1))
+                      0)))
 
 (define (init-opengl)
   (glMatrixMode GL_PROJECTION)
@@ -71,21 +75,28 @@ this simple framework.
   (void))
 
 (define (run-frame)
-  (glClearColor 0. 1. 0. 1.)
+  (glClearColor 1. 1. 1. 1.)
   (glClear GL_COLOR_BUFFER_BIT)
 
-  (glBegin GL_POLYGON)
-  (glColor4f 0. 0. 1. .5)
-  (glVertex2f 0. 0.)
-  (glVertex2f 0. 100.)
-  (glVertex2f 220. 30.)
-  (glVertex2f 150. 60.)
-  (glVertex2f 40. 30.)
-  (glEnd))
+  (for-each (lambda (el)
+              (render-polygon el))
+            polys))
 
 \section{Polygons}
 
-(define (render-polygon points)
-  (void))
+A polygon has the following type:
+
+(define-structure polygon
+  points
+  red
+  green
+  blue
+  alpha)
+
+\subsection{(render-polygon poly)}
+
+This will render a polygon using the number of points and color
+defined in `poly'.  No triangulation method is applied to the polygon;
+its points are passed straight into OpenGL.
 
 \end{document}
