@@ -180,14 +180,14 @@
    remove-point .002
    move-point-minor .005
    move-point-more .005
-   change-red-minor .0075
-   change-red .005
-   change-green-minor .0075
-   change-green .005
-   change-blue-minor .0075
-   change-blue .005
-   change-alpha-minor .0075
-   change-alpha .005))
+   change-red-minor .007
+   change-red .002
+   change-green-minor .007
+   change-green .002
+   change-blue-minor .007
+   change-blue .002
+   change-alpha-minor .007
+   change-alpha .002))
 
 
 ;; Genotype mutators
@@ -242,4 +242,4 @@
   (make-mutators
    add-poly .005
    remove-poly .002
-   reorder-poly .1))
+   reorder-poly .002))

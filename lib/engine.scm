@@ -47,6 +47,9 @@
 (define source-image #f)
 (define population #f)
 
+(define profile-count 0)
+(define profile-average 0)
+
 (define exact inexact->exact)
 (define real exact->inexact)
 
@@ -66,6 +69,7 @@
     (image-read-gl-pixels! new-image)
     new-image))
 
+
 
 ;; Application
 ;; These are special methods which the application is aware of,
@@ -75,7 +79,7 @@
   (current-width width)
   (current-height height)
   (freeimage-initialize #f)
-  (set! source-image (load-image (resource "resources/monalisa.jpg")))
+  (set! source-image (load-image (resource "resources/test2.jpg")))
   (set! population (make-population 3)))
 
 (define (shutdown-engine)
@@ -102,9 +106,6 @@
   (set! source-image (gl-scale-image-to-window (image-blur source-image)))
   (configure source-image))
 
-(define i 0)
-(define average 0)
-
 (define (run-frame)
   (let ((start (real-time)))
     (glClearColor (vec3-x initial-color)
@@ -128,9 +129,9 @@
     (set! population (population-evolve population))
 
     (let ((timed (- (real-time) start)))
-      (set! average (/ (+ (* i average) timed)
-                       (+ i 1)))
-      (set! i (+ i 1))
-      ;;(show "time: " timed "s, ")
-      ;;(show "avg: " average "s\n")
+      (set! profile-average (/ (+ (* profile-count profile-average) timed)
+                               (+ profile-count 1)))
+      (set! profile-count (+ profile-count 1))
+      (show "time: " timed "s, ")
+      (show "avg: " profile-average "s\n")
       )))
