@@ -1,3 +1,4 @@
+
 all: main Main.app main.nib objects
 
 main.nib: app/main.xib

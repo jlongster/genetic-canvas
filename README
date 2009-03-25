@@ -1,0 +1,21 @@
+Genetic Canvas, by James Long
+
+-----------------------------
+
+To build, simply type `make'.
+
+To run, simple type `./main'.
+
+Optionally, you can run it as a bundle by typing `open Main.app'.
+
+-----------------------------
+
+Other common make commands:
+
+make - makes all scheme modules, the main program, and the Main.app bundle
+make objects - just makes all the scheme modules
+make clean-lib-objects - removes the program's scheme modules
+make test - tests the core
+make test-engine - tests the engine library
+make test-images - tests the images library
+make pdf - compile pdf documentation
