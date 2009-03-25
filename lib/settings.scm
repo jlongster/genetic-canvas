@@ -10,36 +10,14 @@
 ;; This is run when the application starts
 
 (define (configure image)
-  (configure-settings image))
+  (configure-colors image)
+  (configure-start-color image))
 
 ;; These settings affect the initial solution
 
 (define initial-num-polygons 0)
 (define initial-color (make-vec3 0. 0. 0.))
-
-;; Util
-
-(define (scale-negation f)
-  (- (* f 2.) 1.))
-
-(define (random-real-in-range minv maxv)
-  (+ (* (random-real)
-        (- maxv minv))
-     minv))
-
-(define (permutation-vector #!optional scale)
-  (make-vec2 (* (scale-negation (random-real)) (or scale 5.))
-             (* (scale-negation (random-real)) (or scale 5.))))
-
-(define (mutate-point point scale)
-  (vec2-add point (permutation-vector scale)))
-
-(define (mutate-real real minv maxv)
-  (min (max (+ (* (random-real-in-range -.04 .04)) real)
-            minv)
-       maxv))
-
-;; Color optimizations
+(define source-image-file "resources/test2.jpg")
 
 (define min-red 0.)
 (define max-red 1.)
@@ -48,7 +26,9 @@
 (define min-blue 0.)
 (define max-blue 1.)
 
-(define (configure-settings image)
+(define (configure-colors image)
+  (if (not (eq? (image-format image) FORMAT_RGBA))
+      (error "Unsupported image type for configure-colors"))
   (let ((bytes (image-bytes image)))
     (let loop ((min-r 1.)
                (min-g 1.)
@@ -76,15 +56,69 @@
             (set! min-green min-g)
             (set! max-green max-g)
             (set! min-blue min-b)
-            (set! max-blue max-b)
+            (set! max-blue max-b))))))
 
-            (display min-red) (newline)
-            (display max-red) (newline)
-            (display min-green) (newline)
-            (display max-green) (newline)
-            (display min-blue) (newline)
-            (display max-blue) (newline))))))
+(define (configure-start-color image)
+  (define (inc vec i)
+    (vector-set! vec i (+ (vector-ref vec i) 1)))
 
+  (define (max-in-vector vec)
+    ;; I really need to look into foof-loop
+    ;; or better looping procedures.  I'm doing
+    ;; this clunky method all the time.
+    (let loop ((best 0)
+               (idx 0)
+               (i 0))
+      (if (>= i (vector-length vec))
+          idx
+          (if (> (vector-ref vec i) best)
+              (loop (vector-ref vec i) i (+ i 1))
+              (loop best idx (+ i 1))))))
+  
+  (if (not (eq? (image-format image) FORMAT_RGBA))
+      (error "Unsupported image type for configure-start-color"))
+  (let ((bytes (image-bytes image))
+        (len (* (image-width image)
+                (image-height image)
+                4))
+        (rstat (make-vector 256))
+        (gstat (make-vector 256))
+        (bstat (make-vector 256)))
+    (let loop ((i 0))
+      (if (>= i len)
+          (let ((r (max-in-vector rstat))
+                (g (max-in-vector gstat))
+                (b (max-in-vector bstat)))
+            (set! initial-color (make-vec3 (byte->real r)
+                                           (byte->real g)
+                                           (byte->real b))))
+          (begin
+            (inc rstat (u8*-ref bytes i))
+            (inc gstat (u8*-ref bytes (+ i 1)))
+            (inc bstat (u8*-ref bytes (+ i 2)))
+            (loop (+ i 4)))))))
+
+;; Util
+
+(define (scale-negation f)
+  (- (* f 2.) 1.))
+
+(define (random-real-in-range minv maxv)
+  (+ (* (random-real)
+        (- maxv minv))
+     minv))
+
+(define (permutation-vector #!optional scale)
+  (make-vec2 (* (scale-negation (random-real)) (or scale 5.))
+             (* (scale-negation (random-real)) (or scale 5.))))
+
+(define (mutate-point point scale)
+  (vec2-add point (permutation-vector scale)))
+
+(define (mutate-real real minv maxv)
+  (min (max (+ (* (random-real-in-range -.04 .04)) real)
+            minv)
+       maxv))
 
 ;; Polygon mutators
 ;;

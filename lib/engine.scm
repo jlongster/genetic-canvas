@@ -79,7 +79,7 @@
   (current-width width)
   (current-height height)
   (freeimage-initialize #f)
-  (set! source-image (load-image (resource "resources/test2.jpg")))
+  (set! source-image (load-image (resource source-image-file)))
   (set! population (make-population 3)))
 
 (define (shutdown-engine)

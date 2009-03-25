@@ -1,11 +1,15 @@
+;; Images
+;;
+;; This modules provides all sorts of functions for doing the painful
+;; task of dealing with images and textures. There are procedures for
+;; loading JPG images, uploading them as OpenGL textures, rendering
+;; them, and even applying gaussian blurring and edge filters.
 
 (declare (block)
          (standard-bindings)
          (extended-bindings))
 
 (include "ffi/util.scm")
-
-;; Images
 
 (define FORMAT_RGB GL_RGB)
 (define FORMAT_RGBA GL_RGBA)
