@@ -77,7 +77,7 @@
   (current-height height)
   (freeimage-initialize #f)
   (set! source-image (load-image (resource source-image-file)))
-  (set! population (make-population 3)))
+  (set! population (make-population 50)))
 
 (define (shutdown-engine)
   (freeimage-deinitialize))
@@ -117,7 +117,7 @@
           (worst (population-fitness-search population <)))
       (glClear GL_COLOR_BUFFER_BIT)
       (glColor4f 1. 1. 1. .1)
-      (image-render source-image)
+;;       (image-render source-image)
       (render-genotype best))
 
     ;; Evolve it another time

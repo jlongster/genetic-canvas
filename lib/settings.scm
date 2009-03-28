@@ -7,6 +7,10 @@
 ;; the parts which decide when and what to mutate, and a few other
 ;; minor settings.
 
+(declare (block)
+         (standard-bindings)
+         (extended-bindings))
+
 ;; This is run when the application starts
 
 (define (configure image)
