@@ -1,7 +1,8 @@
 
 (declare (block)
          (standard-bindings)
-         (extended-bindings))
+         (extended-bindings)
+         (fixnum))
 
 ;; Genotype
 
@@ -33,6 +34,7 @@
                                 (car tail2)))))))
 
 (define (random-genotype)
+  (declare (fixnum))
   (make-genotype
    (let loop ((acc '())
               (i 0))
@@ -78,13 +80,14 @@
   (%%calculate-fitness (image-bytes image)
                        (image-bytes source-image)
                        (* (image-width source-image)
-                          (image-height source-image)
-                          4)))
+                            (image-height source-image)
+                            4)))
 
 
 ;; Population
 
 (define (make-population size)
+  (declare (fixnum))
   (let loop ((acc '())
              (i 0))
     (if (< i size)
@@ -105,7 +108,7 @@
       (if (not (null? pop))
           (let ((gt (car pop)))
             (genotype-fitness-set! gt (- worst-fitness
-                                         (genotype-fitness gt)))
+                                           (genotype-fitness gt)))
             (loop (cdr pop)))))))
 
 (define (population-fitness-search pop op)
@@ -259,7 +262,7 @@
     (if (not (null? tail))
         (let ((mutator (car tail))
               (prob (cadr tail)))
-          (if (< (random-real) prob)
+          (if (fl< (random-real) prob)
               (begin
                 ;; (display (mutator-name m)) (newline)
                 (mutator thing)))

@@ -21,6 +21,7 @@
 
 (define initial-num-polygons 0)
 (define initial-color (make-vec3 0. 0. 0.))
+(define population-size 10)
 (define source-image-file "resources/monalisa.jpg")
 
 (define min-red 0.)
