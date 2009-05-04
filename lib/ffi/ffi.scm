@@ -6,6 +6,9 @@
 
 (include "ffi#.scm")
 
+(define NULL
+  ((c-lambda () (pointer void #f) "___result_voidstar=0;")))
+
 (define u8*->u8vector
   (c-lambda (u8* int) scheme-object #<<end-c-code
    ___U8* data = ___arg1;

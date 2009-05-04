@@ -27,3 +27,7 @@ gl.o1: gl.scm
 glu.o1: glu.scm
 	rm -f glu.o1
 	gsc glu.scm
+
+glext.o1: glext.scm
+	rm -f glext.o1
+	gsc -ld-options "-framework OpenGL" glext.scm

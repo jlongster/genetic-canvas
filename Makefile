@@ -28,6 +28,8 @@ main: app/link_.c app/cocoa.m app/glview.m app/glwindow.m app/app.m
 	 	-lIL \
 		-sectcreate __TEXT __info_plist app/Info.plist
 # 		-lSaturn -finstrument-functions
+#		-no-cpp-precomp -Wall -W -Wno-unused -O4 -fno-math-errno -fschedule-insns2 -fno-trapping-math -fno-strict-aliasing -fwrapv -fmodulo-sched -freschedule-modulo-scheduled-loops -fomit-frame-pointer -fPIC -fno-common -mieee-fp 
+#		-D___SINGLE_HOST 
 
 lib/ffi/ffi.o1: lib/ffi/ffi.scm
 	rm -f lib/ffi/ffi.o1
@@ -58,7 +60,7 @@ lib/genetic.o1: lib/genetic.scm
 	rm -f lib/genetic.o1
 	gsc -debug lib/genetic.scm
 
-lib/fitness-ffi.o1: lib/fitness-ffi.scm
+lib/fitness-ffi.o1: lib/fitness-ffi.scm lib/fitness.c
 	rm -f lib/fitness-ffi.o1
 	gsc -debug lib/fitness-ffi.scm
 
@@ -68,7 +70,11 @@ lib/geometry.o1: lib/geometry.scm
 
 lib/images.o1: lib/images.scm
 	rm -f lib/images.o1
-	gsc -debug -debug lib/images.scm
+	gsc -debug lib/images.scm
+
+lib/framebuffer.o1: lib/framebuffer.scm
+	rm -f lib/framebuffer.o1
+	gsc -debug lib/framebuffer.scm
 
 lib/settings.o1: lib/settings.scm
 	rm -f lib/settings.o1
@@ -83,7 +89,8 @@ objects: lib/ffi/ffi.o1 \
 	lib/geometry.o1 \
 	lib/images.o1 \
 	lib/fitness-ffi.o1 \
-	lib/settings.o1
+	lib/settings.o1 \
+	lib/framebuffer.o1
 
 clean-objects:
 	find . -iname '*.o1' | xargs rm

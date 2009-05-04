@@ -1,5 +1,11 @@
 (c-declare "#include \"gl/gl.h\"")
 (include "types.scm")
+
+(define (display-gl-error)
+  (display "ERROR: ")
+  (display (gluErrorString (glGetError)))
+  (newline))
+
 (define GL_LOGIC_OP (lambda () GL_INDEX_LOGIC_OP))
 (define GL_TEXTURE_COMPONENTS (lambda () GL_TEXTURE_INTERNAL_FORMAT))
 (define GL_VERSION_1_1 1)

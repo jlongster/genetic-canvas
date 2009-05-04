@@ -13,10 +13,10 @@
   fitness)
 
 (define (make-genotype data #!optional fitness)
-  (really-make-genotype data (or fitness 0)))
+  (really-make-genotype data (or fitness 0.)))
 
 (define (genotype-shallow-copy gt)
-  (make-genotype (genotype-data gt) 0))
+  (make-genotype (genotype-data gt) 0.))
 
 (define (genotype-equal? gt1 gt2)
   (let ((data1 (genotype-data gt1))
@@ -42,7 +42,7 @@
          (loop (cons (random-polygon) acc)
                (+ i 1))
          acc))
-   0.0))
+   0.))
 
 (define (render-genotype gt)
   (let loop ((tris (genotype-data gt)))
@@ -55,29 +55,96 @@
 
 (define (run-genotype gt source-image)
   ;; Allocate an image buffer if necessary
-  (if (or (not %%genotype-current-image)
-          (not (eq? (image-width source-image)
-                    (image-width %%genotype-current-image)))
-          (not (eq? (image-height source-image)
-                    (image-height %%genotype-current-image))))
+  (if (not %%genotype-current-image)
       (set! %%genotype-current-image
             (make-image (image-width source-image)
                         (image-height source-image)
                         FORMAT_RGBA)))
 
-  ;; Draw genotype
+  ((if hardware-accelerated?
+       calculate-fitness/accelerated
+       calculate-fitness)
+   source-image gt))
+
+(define %%genotype-framebuffer #f)
+(define %%genotype-framebuffer-img0 #f)
+(define %%genotype-framebuffer-img1 #f)
+(define %%genotype-framebuffer-img2 #f)
+
+;; This does the same thing as calculate-fitness, but applies the
+;; difference of the two images on the graphics card. It turns out
+;; that because of fill rates and possibly other things, this is
+;; slower than calculating it all on the CPU. :(
+(define (calculate-fitness/accelerated source-image gt)
+  (if (not %%genotype-framebuffer)
+      (begin
+        (let ((fbo (alloc-framebuffer))
+              (img0 (alloc-framebuffer-image (image-width source-image)
+                                             (image-height source-image)))
+              (img1 (alloc-framebuffer-image (image-width source-image)
+                                             (image-height source-image)))
+              (img2 (alloc-framebuffer-image (image-width source-image)
+                                             (image-height source-image))))
+          (set! %%genotype-framebuffer fbo)
+          (set! %%genotype-framebuffer-img0 img0)
+          (set! %%genotype-framebuffer-img1 img1)
+          (set! %%genotype-framebuffer-img2 img2)
+
+          (framebuffer-select fbo)
+          (framebuffer-attach-image GL_COLOR_ATTACHMENT0_EXT (image-gl-texture-id img0))
+          (framebuffer-attach-image GL_COLOR_ATTACHMENT1_EXT (image-gl-texture-id img1))
+          (framebuffer-attach-image GL_COLOR_ATTACHMENT2_EXT (image-gl-texture-id img2))
+          (framebuffer-check-status)
+          (framebuffer-select 0))))
+  
+  (framebuffer-select %%genotype-framebuffer)
+  (glPushAttrib GL_COLOR_BUFFER_BIT)
+
+  (glDrawBuffer GL_COLOR_ATTACHMENT0_EXT)
+  (glClear GL_COLOR_BUFFER_BIT)
+  (render-genotype gt)
+  
+  (glDrawBuffer GL_COLOR_ATTACHMENT1_EXT)
+  (image-render source-image)
+  (glBlendEquation GL_MAX)
+  (glBlendFunc GL_ONE GL_ONE)
+  (image-render %%genotype-framebuffer-img0)
+
+  (glDrawBuffer GL_COLOR_ATTACHMENT2_EXT)
+  (glBlendEquation GL_FUNC_ADD)
+  (glBlendFunc GL_ONE GL_ZERO)
+  (image-render source-image)
+  (glBlendEquation GL_MIN)
+  (glBlendFunc GL_ONE GL_ONE)
+  (image-render %%genotype-framebuffer-img0)
+
+  (framebuffer-select 0)
+  
+  (glBlendEquation GL_FUNC_ADD)
+  (glBlendFunc GL_ONE GL_ZERO)
+  (image-render %%genotype-framebuffer-img2)
+  (glBlendEquation GL_FUNC_SUBTRACT)
+  (glBlendFunc GL_ONE GL_ONE)
+  (image-render %%genotype-framebuffer-img1)
+  
+  (glPopAttrib)
+  (image-read-gl-pixels! %%genotype-current-image)
+  (%%sum-fitness (image-bytes %%genotype-current-image)
+                 (* (image-width %%genotype-current-image)
+                    (image-height %%genotype-current-image)
+                    4)))
+
+;; Renders the genotype, subtracts the source image, and sums all of
+;; the RGB values for the final fitness.
+(define (calculate-fitness source-image gt)
+  (if (not (eq? (image-format source-image) FORMAT_RGBA))
+      (error "Source image must be in the RGBA format" source-image))
+  
   (glClear GL_COLOR_BUFFER_BIT)
   (render-genotype gt)
   (image-read-gl-pixels! %%genotype-current-image)
-  (calculate-fitness source-image %%genotype-current-image))
-
-(define (calculate-fitness source-image image)
-  (if (not (eq? (image-format source-image) FORMAT_RGBA))
-      (error "Source image must be in the RGBA format" source-image))
-  (if (not (eq? (image-format image) FORMAT_RGBA))
-      (error "Input image must be in the RGBA format" image))
-
-  (%%calculate-fitness (image-bytes image)
+      
+  (%%calculate-fitness (image-bytes %%genotype-current-image)
                        (image-bytes source-image)
                        (* (image-width source-image)
                             (image-height source-image)
@@ -122,12 +189,14 @@
 
 (define (population-run! pop source-image)
   (for-each (lambda (el)
-              (genotype-fitness-set! el (run-genotype el source-image)))
+              (genotype-fitness-set! el (run-genotype el source-image))
+              ;;(pp (genotype-fitness el))
+              )
             pop)
   (population-normalize population))
 
-;; Drives the evolution cycle, using elitist selection
-;; and running full genotype mutation on every one
+;; Drives the evolution cycle, using elitist selection and running
+;; full genotype mutation on all but one (one is pristinely preserved)
 (define (population-evolve pop)
   (let* ((count (length pop))
          (lst (selection-elitist pop count)))
@@ -136,7 +205,10 @@
       (if (null? tail)
           acc
           (let ((head (car tail)))
-            (mutate-genotype! head)
+            (case (random-integer 3)
+              ((0) (mutate-genotype! head))
+              ((1) (mutate-geometry! head))
+              ((2) (mutate-polygons! head)))
             (loop (cons head acc)
                   (cdr tail)))))))
 
@@ -264,7 +336,9 @@
               (prob (cadr tail)))
           (if (fl< (random-real) prob)
               (begin
-                ;; (display (mutator-name m)) (newline)
+                (if trace-mutators?
+                    (begin (display mutator)
+                           (newline)))
                 (mutator thing)))
           (loop (cddr tail))))))
 

@@ -1,0 +1,12 @@
+#! /bin/zsh
+
+cat glext2.scm | \
+while read line; do
+    if [ "$line" != "${line%%c-lambda*}" ]; then
+        nm /System/Library/Frameworks/OpenGL.framework/Libraries/libGL.dylib | \
+            grep "`echo $line | awk '{print $2}'`" > /dev/null
+        if [ $? -eq 0 ]; then
+            echo "$line"
+        fi
+    fi
+done

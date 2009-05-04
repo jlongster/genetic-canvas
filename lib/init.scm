@@ -4,7 +4,7 @@
 
 ;; Load in the engine and define its interface
 (load (resource "lib/engine"))
-;;(include "engine.scm")
+;; (include "engine.scm")
 
 (c-define (init-opengl-c) () void "init_opengl" ""
   (init-opengl))

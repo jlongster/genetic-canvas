@@ -14,15 +14,21 @@
 ;; This is run when the application starts
 
 (define (configure image)
+  (random-source-randomize! default-random-source)
   (configure-colors image)
   (configure-start-color image))
 
-;; These settings affect the initial solution
+;; These settings configure the algorithm and affect the initial
+;; solution
 
+(define source-image-file "resources/test2.jpg")
+(define hardware-accelerated? #f)
+(define trace-mutators? #f)
+(define blur-image? #t)
+ 
+(define population-size 10)
 (define initial-num-polygons 0)
 (define initial-color (make-vec3 0. 0. 0.))
-(define population-size 10)
-(define source-image-file "resources/monalisa.jpg")
 
 (define min-red 0.)
 (define max-red 1.)
@@ -48,12 +54,12 @@
           (let ((r (byte->real (u8*-ref bytes i)))
                 (g (byte->real (u8*-ref bytes (+ i 1))))
                 (b (byte->real (u8*-ref bytes (+ i 2)))))
-            (loop (min min-r r)
-                  (min min-g g)
-                  (min min-b b)
-                  (max max-r r)
-                  (max max-g g)
-                  (max max-b b)
+            (loop (flmin min-r r)
+                  (flmin min-g g)
+                  (flmin min-b b)
+                  (flmax max-r r)
+                  (flmax max-g g)
+                  (flmax max-b b)
                   (+ i 4)))
           (begin
             (set! min-red min-r)
@@ -215,10 +221,10 @@
 
 (define poly-mutators
   (make-mutators
-   add-point .002
-   remove-point .002
-   move-point-minor .005
-   move-point-more .005
+   add-point .003
+   remove-point .003
+   move-point-minor .007
+   move-point-more .007
    change-red-minor .007
    change-red .002
    change-green-minor .007
@@ -280,5 +286,5 @@
 (define geo-mutators
   (make-mutators
    add-poly .005
-   remove-poly .002
-   reorder-poly .002))
+   remove-poly .003
+   reorder-poly .005))

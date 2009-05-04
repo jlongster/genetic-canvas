@@ -7,7 +7,8 @@
 
 (declare (block)
          (standard-bindings)
-         (extended-bindings))
+         (extended-bindings)
+         (flonum))
 
 ;; Required modules
 
@@ -21,17 +22,19 @@
 
 (define-macro (require name)
   (if inline?
-      `(include ,name)
+      `(include ,(string-append name ".scm"))
       `(load (resource lib-path ,name))))
 
 (require-macros "ffi/util.scm")
-(require "ffi/gl/gl")
-(require "ffi/gl/glu")
-(require "ffi/ffi")
-(require "ffi/freeimage")
-(require "util/sort.scm")
-(require "util/srfi-1.scm")
-(require "util/srfi-13.scm")
+(load (resource lib-path "ffi/gl/gl"))
+(load (resource lib-path "ffi/gl/glu"))
+(load (resource lib-path "ffi/gl/glext"))
+(load (resource lib-path "ffi/ffi"))
+(load (resource lib-path "ffi/freeimage"))
+(require "util/sort")
+(require "util/srfi-1")
+(require "util/srfi-13")
+(require "framebuffer")
 (require "fitness-ffi")
 (require "images")
 (require "vectors")
@@ -48,7 +51,7 @@
 (define population #f)
 
 (define profile-count 0)
-(define profile-average 0)
+(define profile-average 0.)
 
 (define (display-gl-error)
   (display (gluErrorString (glGetError))))
@@ -97,8 +100,12 @@
   (glEnable GL_BLEND)
   (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
   (glDisable GL_CULL_FACE)
+  (glDisable GL_DEPTH_TEST)
 
-  (set! source-image (gl-scale-image-to-window (image-blur source-image)))
+  (if blur-image?
+      (set! source-image (gl-scale-image-to-window (image-blur source-image)))
+      (set! source-image (gl-scale-image-to-window source-image)))
+  
   (configure source-image))
 
 (define (run-frame)
@@ -107,6 +114,7 @@
                   (vec3-y initial-color)
                   (vec3-z initial-color)
                   1.)
+    (glClear GL_COLOR_BUFFER_BIT)
     (glLoadIdentity)
 
     ;; Run all the genotypes
@@ -117,16 +125,17 @@
           (worst (population-fitness-search population <)))
       (glClear GL_COLOR_BUFFER_BIT)
       (glColor4f 1. 1. 1. .1)
-      (image-render source-image)
+      (image-render source-image #f #f #t)
       (render-genotype best))
 
     ;; Evolve it another time
     (set! population (population-evolve population))
 
     (let ((timed (- (real-time) start)))
-      (set! profile-average (/ (+ (* profile-count profile-average) timed)
-                               (+ profile-count 1)))
-      (set! profile-count (+ profile-count 1))
+      (set! profile-average (/ (+ (* (real profile-count) profile-average)
+                                  timed)
+                               (real (fx+ profile-count 1))))
+      (set! profile-count (fx+ profile-count 1))
       (show "time: " timed "s, ")
       (show "avg: " profile-average "s\n")
       )))

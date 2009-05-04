@@ -7,12 +7,14 @@
 
 (declare (block)
          (standard-bindings)
-         (extended-bindings))
+         (extended-bindings)
+         (flonum))
 
 (include "ffi/util.scm")
 
 (define FORMAT_RGB GL_RGB)
 (define FORMAT_RGBA GL_RGBA)
+(define FORMAT_RGB8 GL_RGB8)
 (define FORMAT_LUMINANCE GL_LUMINANCE)
 
 (define-type image
@@ -28,9 +30,10 @@
   (let* ((bytes-count (cond
                         ((eq? format FORMAT_LUMINANCE) 1)
                         ((eq? format FORMAT_RGB) 3)
+                        ((eq? format FORMAT_RGB8) 3)
                         ((eq? format FORMAT_RGBA) 4)
                         (else (error "Invalid format" format))))
-         (bytes (or bytes (alloc-u8 (* width height bytes-count))))
+         (bytes (or bytes (alloc-u8 (fx* width height bytes-count))))
          (img (really-make-image width height bytes format #f)))
     (make-will img (lambda (x)
                      (free (image-bytes x))))
@@ -57,21 +60,24 @@
                 GL_RGBA GL_UNSIGNED_BYTE
                 (u8*->void* (image-bytes image))))
 
-(define (image-opengl-upload! image)
-  (let ((tex (with-alloc (buf (alloc-uint 1))
-               (glGenTextures 1 buf)
-               (uint*-ref buf 0))))
+(define (alloc-opengl-image)
+  (with-alloc (img (alloc-uint 1))
+    (glGenTextures 1 img)
+    (uint*-ref img 0)))
+
+(define (image-opengl-upload! image #!optional internal-format)
+  (let ((tex (alloc-opengl-image)))
     (glBindTexture GL_TEXTURE_2D tex)
     (glTexEnvi GL_TEXTURE_ENV GL_TEXTURE_ENV_MODE GL_DECAL)
     (glTexImage2D GL_TEXTURE_2D
                   0
-                  (image-format image)
+                  (or internal-format (image-format image))
                   (image-width image)
                   (image-height image)
                   0
                   (image-format image)
                   GL_UNSIGNED_BYTE
-                  (u8*->void* (image-bytes image)))
+                  (u8*->void* (or (image-bytes image) NULL)))
     (glTexParameteri GL_TEXTURE_2D
                      GL_TEXTURE_MIN_FILTER
                      GL_LINEAR)
@@ -80,10 +86,10 @@
                      GL_LINEAR)
     (glTexParameteri GL_TEXTURE_2D
                      GL_TEXTURE_WRAP_S
-                     GL_REPEAT)
+                     GL_CLAMP_TO_EDGE)
     (glTexParameteri GL_TEXTURE_2D
                      GL_TEXTURE_WRAP_T
-                     GL_REPEAT)
+                     GL_CLAMP_TO_EDGE)    
     (glBindTexture GL_TEXTURE_2D 0)
     (image-gl-texture-id-set! image tex)))
 
@@ -97,7 +103,7 @@
                  (u8*-ref data (+ byte-offset 1))
                  (u8*-ref data (+ byte-offset 2))))))
 
-(define (image-render image #!optional width height)
+(define (image-render image #!optional width height skip-color)
   (if (not (image-gl-texture-id image))
       (image-opengl-upload! image))
   
@@ -105,6 +111,8 @@
         (h (or height (image-height image))))
     (glBindTexture GL_TEXTURE_2D (image-gl-texture-id image))
     (glBegin GL_QUADS)
+    (if (not skip-color)
+        (glColor4f 1. 1. 1. 1.))
     (begin
       (glTexCoord2d 0. 1.)
       (glVertex2f 0. 0.))
@@ -153,6 +161,7 @@
    (else (error "Unsupported image format"))))
 
 (define (strip-bytes img offset)
+  (declare (fixnum))
   (let* ((len (* (image-width img)
                  (image-height img)))
          (bytes (image-bytes img))
@@ -174,6 +183,7 @@
   (strip-bytes img 2))
 
 (define (weave-rgb-bytes r g b len)
+  (declare (fixnum))
   (let ((out (alloc-u8 (* len 3))))
     (let loop ((i 0))
       (if (< i len)
@@ -199,7 +209,7 @@
                            (weave-rgb-bytes red-blurred
                                             green-blurred
                                             blue-blurred
-                                            (* width height)))))
+                                            (fx* width height)))))
       (free red)
       (free green)
       (free blue)
@@ -208,33 +218,53 @@
       (free blue-blurred)
       res)))
 
+
+;; Utility
+
+(define (saturate f)
+  (if (fl< f 0.) 0.
+      (if (fl> f 1.) 1.
+          f)))
+
+(define (byte->real byte)
+  (/ (real byte) 255.))
+
+(define (real->byte f)
+  (inexact->exact
+   (floor (* (saturate f) 255.))))
+
+(define exact inexact->exact)
+(define real exact->inexact)
 
 
 ;; Analzying an image, edge detection, etc.
 
 (define (gaussian-distribution x y rho)
-  (* (/ 1. (sqrt (* 2. 3.141592654 rho rho)))
-     (exp (/ (- (+ (* x x)
-                   (* y y)))
-             (* 2 rho rho)))))
+  (let ((x (real x))
+        (y (real y)))
+    (* (/ 1. (sqrt (* 2. 3.141592654 rho rho)))
+       (exp (/ (- (+ (* x x)
+                     (* y y)))
+               (* 2. rho rho))))))
 
 (define gaussian-kernel-edge-length 5)
 (define gaussian-rho 1.2)
 (define gaussian-kernel
-  (let* ((len (* gaussian-kernel-edge-length
-                 gaussian-kernel-edge-length))
-         (offset (/ (- gaussian-kernel-edge-length 1) 2))
-         (out (make-vector len)))
-    (let loop ((i 0))
-      (if (< i len)
-          (let ((x (remainder i gaussian-kernel-edge-length))
-                (y (quotient i gaussian-kernel-edge-length)))
-            (vector-set! out i
-                         (gaussian-distribution (- x offset)
-                                                (- y offset)
-                                                gaussian-rho))
-            (loop (+ i 1)))
-          out))))
+  (let ((len (fx* gaussian-kernel-edge-length
+                  gaussian-kernel-edge-length)))
+    (declare (fixnum))
+    (let ((offset (/ (- gaussian-kernel-edge-length 1) 2))
+          (out (make-vector len)))
+      (let loop ((i 0))
+        (if (< i len)
+            (let ((x (remainder i gaussian-kernel-edge-length))
+                  (y (quotient i gaussian-kernel-edge-length)))
+              (vector-set! out i
+                           (gaussian-distribution (- x offset)
+                                                  (- y offset)
+                                                  gaussian-rho))
+              (loop (+ i 1)))
+            out)))))
 
 (define edge-kernel-edge-length 5)
 (define edge-kernel
@@ -284,9 +314,10 @@
           (loop (+ i 1))))))
 
 (define (apply-filter filter filter-edge-length bytes x y width height)
+  (declare (fixnum))
   (let ((offset (/ (- filter-edge-length 1) 2))
         (filter-size (* filter-edge-length filter-edge-length)))
-    (let loop ((value 0)
+    (let loop ((value 0.)
                (i 0)
                (applied 0))
       (if (< i filter-size)
@@ -297,16 +328,17 @@
             (if (or (< img-x 0)
                     (< img-y 0))
                 (loop value (+ i 1) applied)
-                (loop (+ value (* (vector-ref filter i)
-                                  (byte->real (u8*-ref bytes
-                                                       (+ (* width img-y)
-                                                          img-x)))))
+                (loop (fl+ value (fl* (vector-ref filter i)
+                                      (byte->real (u8*-ref bytes
+                                                           (+ (* width img-y)
+                                                              img-x)))))
                       (+ i 1)
                       (+ applied 1))))
-          (* value (/ applied filter-size))))))
+          (fl* value (real (/ applied filter-size)))))))
 
 (define-macro (define-filter name kernel kernel-edge-length normalize)
   `(define (,name bytes width height)
+     (declare (fixnum))
      (let* ((length (* width height))
             (output (alloc-u8 length)))
        (let loop ((i 0))
@@ -324,28 +356,10 @@
   gaussian-kernel
   gaussian-kernel-edge-length
   (lambda (value)
-    (real->byte (saturate (/ value 2.5)))))
+    (real->byte (saturate (fl/ value 2.5)))))
 
 (define-filter edge-filter
   edge-kernel
   edge-kernel-edge-length
   (lambda (value)
-    (real->byte (if (< value .5) 0. 1.))))
-
-
-;; Utility
-
-(define (saturate f)
-  (if (< f 0.) 0.
-      (if (> f 1.) 1.
-          f)))
-
-(define (byte->real byte)
-  (/ byte 255.))
-
-(define (real->byte f)
-  (inexact->exact
-   (floor (* (saturate f) 255.))))
-
-(define exact inexact->exact)
-(define real exact->inexact)
+    (real->byte (if (fl< value .5) 0. 1.))))
