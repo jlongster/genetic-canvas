@@ -16,17 +16,28 @@
 (define (configure image)
   (random-source-randomize! default-random-source)
   (configure-colors image)
-  (configure-start-color image))
+  ;;(configure-start-color image)
+  )
 
 ;; These settings configure the algorithm and affect the initial
 ;; solution
 
-(define source-image-file "resources/test2.jpg")
+(define root "/Users/james/projects/scheme/artbot/")
+(define source-image-file "resources/monalisa.jpg")
 (define hardware-accelerated? #f)
 (define trace-mutators? #f)
+(define profile? #f)
 (define blur-image? #t)
- 
+(define render-border? #f)
+(define render-source? #t)
+
+;; Possible options:
+;; population-evolve-full (standard evolution)
+;; population-evolve-three (biased evolution with three)
+;; population-evolve-two (stochastic hill climbing with two)
+(define population-evolve population-evolve-full)
 (define population-size 10)
+
 (define initial-num-polygons 0)
 (define initial-color (make-vec3 0. 0. 0.))
 
@@ -127,7 +138,7 @@
   (vec2-add point (permutation-vector scale)))
 
 (define (mutate-real real minv maxv)
-  (min (max (+ (* (random-real-in-range -.04 .04)) real)
+  (min (max (+ (random-real-in-range -.04 .04) real)
             minv)
        maxv))
 
@@ -211,28 +222,29 @@
                                        min-blue
                                        max-blue)))
 
+;; <<< TODO: what ranges should we restrict the alpha values to? >>>
 (define (change-alpha poly)
-  (polygon-alpha-set! poly (+ (* (random-real) .25) .11)))
+  (polygon-alpha-set! poly (+ (* (random-real) .3) .11)))
 
 (define (change-alpha-minor poly)
   (polygon-alpha-set! poly
                       (mutate-real
-                       (polygon-alpha poly) .25 .11)))
+                       (polygon-alpha poly) .11 .41)))
 
 (define poly-mutators
   (make-mutators
-   add-point .003
-   remove-point .003
+   add-point .004
+   remove-point .002
    move-point-minor .007
-   move-point-more .007
+   move-point-more .002
    change-red-minor .007
-   change-red .002
+   change-red .001
    change-green-minor .007
-   change-green .002
+   change-green .001
    change-blue-minor .007
-   change-blue .002
+   change-blue .001
    change-alpha-minor .007
-   change-alpha .002))
+   change-alpha .001))
 
 
 ;; Genotype mutators
@@ -285,6 +297,6 @@
 
 (define geo-mutators
   (make-mutators
-   add-poly .005
-   remove-poly .003
-   reorder-poly .005))
+   add-poly .004
+   remove-poly .002
+   reorder-poly .002))

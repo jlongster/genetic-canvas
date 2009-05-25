@@ -125,17 +125,18 @@
           (worst (population-fitness-search population <)))
       (glClear GL_COLOR_BUFFER_BIT)
       (glColor4f 1. 1. 1. .1)
-      (image-render source-image #f #f #t)
-      (render-genotype best))
+      (if render-source? (image-render source-image #f #f #t))
+      (render-genotype best render-border?))
 
     ;; Evolve it another time
     (set! population (population-evolve population))
 
-    (let ((timed (- (real-time) start)))
-      (set! profile-average (/ (+ (* (real profile-count) profile-average)
-                                  timed)
-                               (real (fx+ profile-count 1))))
-      (set! profile-count (fx+ profile-count 1))
-      (show "time: " timed "s, ")
-      (show "avg: " profile-average "s\n")
-      )))
+    (if profile?
+        (let ((timed (- (real-time) start)))
+          (set! profile-average (/ (+ (* (real profile-count) profile-average)
+                                      timed)
+                                   (real (fx+ profile-count 1))))
+          (set! profile-count (fx+ profile-count 1))
+          (show "time: " timed "s, ")
+          (show "avg: " profile-average "s\n")
+          ))))

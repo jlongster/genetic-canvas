@@ -32,7 +32,4 @@
                 (cdr tail))))))
 
 (define (resource . args)
-  (apply
-   join-paths
-   (cons "/Users/james/projects/scheme/artbot/"
-         args)))
+  (apply join-paths (cons root args)))

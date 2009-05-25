@@ -26,30 +26,16 @@
 
 (define (random-points)
   (let ((origin (random-point))
-        (num-points 3))
+        (num-points 3)
+        (scale (random-integer 50)))
     (unfold (lambda (i) (>= i num-points))
             (lambda (i)
               (vec2-add
                origin
-               (make-vec2 (- (random-integer 100) 50)
-                          (- (random-integer 100) 50))))
+               (make-vec2 (* scale (scale-negation (random-real)))
+                          (* scale (scale-negation (random-real))))))
             (lambda (i) (+ i 1))
             0)))
-
-;; (define (random-points)
-;;   (let ((origin (random-point)))
-;;     (let loop ((success #f))
-;;       (or success
-;;           (let* ((num-points (random-real-in-range 3 6))
-;;                  (points (unfold (lambda (i) (>= i num-points))
-;;                                  (lambda (i)
-;;                                    (vec2-add
-;;                                     origin
-;;                                     (make-vec2 (- (random-integer 150) 75)
-;;                                                (- (random-integer 150) 75))))
-;;                                  (lambda (i) (+ i 1))
-;;                                  0)))
-;;             (loop (triangulate points)))))))
 
 (define (random-polygon)
   (make-polygon
@@ -59,19 +45,29 @@
    (random-real)
    (* (random-real) .6)))
 
-(define (render-polygon poly)
-  (glBegin GL_POLYGON)
+(define (render-polygon poly #!optional (border #f))
+  (define (%%render)
+    (glBegin GL_POLYGON)
+    (let loop ((tail (polygon-points poly)))
+      (if (not (null? tail))
+          (let ((point (car tail)))
+            (glVertex2f (vec2-x point) (vec2-y point))
+            (loop (cdr tail)))))
+    (glEnd))
+
   (glColor4f (polygon-red poly)
              (polygon-green poly)
              (polygon-blue poly)
              (polygon-alpha poly))
-  (let loop ((tail (polygon-points poly)))
-    (if (not (null? tail))
-        (let ((point (car tail)))
-          (glVertex2f (vec2-x point) (vec2-y point))
-          (loop (cdr tail)))))
-  (glEnd))
+  (%%render)
 
+  (if border
+      (begin
+        (glPushAttrib GL_POLYGON_BIT)
+        (glPolygonMode GL_FRONT_AND_BACK GL_LINE)
+        (glColor4f 1. 1. 1. 1.)
+        (%%render)
+        (glPopAttrib))))
 
 ;; Point
 

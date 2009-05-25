@@ -13,10 +13,10 @@
   fitness)
 
 (define (make-genotype data #!optional fitness)
-  (really-make-genotype data (or fitness 0.)))
+  (really-make-genotype data (or fitness #f)))
 
 (define (genotype-shallow-copy gt)
-  (make-genotype (genotype-data gt) 0.))
+  (make-genotype (genotype-data gt) #f))
 
 (define (genotype-equal? gt1 gt2)
   (let ((data1 (genotype-data gt1))
@@ -41,14 +41,13 @@
      (if (< i initial-num-polygons)
          (loop (cons (random-polygon) acc)
                (+ i 1))
-         acc))
-   0.))
+         acc))))
 
-(define (render-genotype gt)
+(define (render-genotype gt #!optional (border #f))
   (let loop ((tris (genotype-data gt)))
     (if (not (null? tris))
         (begin
-          (render-polygon (car tris))
+          (render-polygon (car tris) border)
           (loop (cdr tris))))))
 
 (define %%genotype-current-image #f)
@@ -189,15 +188,14 @@
 
 (define (population-run! pop source-image)
   (for-each (lambda (el)
-              (genotype-fitness-set! el (run-genotype el source-image))
-              ;;(pp (genotype-fitness el))
-              )
+              (if (not (genotype-fitness el))
+                  (genotype-fitness-set! el (run-genotype el source-image))))
             pop)
   (population-normalize population))
 
 ;; Drives the evolution cycle, using elitist selection and running
 ;; full genotype mutation on all but one (one is pristinely preserved)
-(define (population-evolve pop)
+(define (population-evolve-full pop)
   (let* ((count (length pop))
          (lst (selection-elitist pop count)))
     (let loop ((acc (list (car lst)))
@@ -205,12 +203,21 @@
       (if (null? tail)
           acc
           (let ((head (car tail)))
-            (case (random-integer 3)
-              ((0) (mutate-genotype! head))
-              ((1) (mutate-geometry! head))
-              ((2) (mutate-polygons! head)))
+            (case (random-integer 2)
+              ((0) (mutate-geometry! head))
+              ((1) (mutate-polygons! head)))
             (loop (cons head acc)
                   (cdr tail)))))))
+
+;; Special case evolution. We enforce a population size of 2, and use
+;; stochastic hill climbing instead of a real genetic algorithm.
+(define (population-evolve-two pop)
+  (let ((lst (selection-elitist pop 2))
+        (chosen (population-fitness-search pop >)))
+    ;; Don't run the non-mutated genotype again
+    ;;(genotype-fitness-set! (car lst) (genotype-fitness chosen))
+    (mutate-genotype! (cadr lst))
+    lst))
 
 ;; Special case evolution. We enforce a population size of 3, leaving
 ;; the first one a cloned copy, mutating only the polygons of the

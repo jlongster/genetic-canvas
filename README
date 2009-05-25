@@ -2,12 +2,18 @@ Genetic Canvas, by James Long
 
 -----------------------------
 
+The first thing you need to do is edit "lib/setting.scm" and specify
+the filesystem path of the project by changing the `root' variable.
+Other system settings can be customized within that file.  And then:
+
 To build, simply type `make'.
 
 To run, simple type `./main'.
 
 You must be using OS X to use this program. You can also run it as a
-bundle by typing `open Main.app'.
+bundle by typing `./run'. I can't get environment variables from the
+Info.plist file working, but when I do, the standard `open Main.app'
+will work.
 
 -----------------------------
 
@@ -16,6 +22,9 @@ Other common make commands:
 make - makes all scheme modules, the main program, and the Main.app bundle
 make objects - just makes all the scheme modules
 make clean-lib-objects - removes the program's scheme modules
+
+Obsolete commands:
+
 make test - tests the core
 make test-engine - tests the engine library
 make test-images - tests the images library
